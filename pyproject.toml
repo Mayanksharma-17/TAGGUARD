@@ -1,0 +1,12 @@
+[tool.skylos]
+# verifier/verify.py is a CLI tool, so stdout print() statements are expected user output
+ignore_rules = ["SKY-L009"]
+
+[tool.skylos.gate]
+max_high = 5
+max_quality = 15
+max_ai_defects = 0
+block_ai_defect_severities = ["CRITICAL", "HIGH"]
+
+[tool.skylos.done]
+test_command = "python3 -m unittest discover tests"
