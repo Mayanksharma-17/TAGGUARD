@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TAGGUARD — Tamper-Evident Telemetry & Audit Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.15);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.15);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.15);
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1300px; margin: 0 auto; }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .logo-badge {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+    h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .subtitle { font-size: 13px; color: var(--text-muted); }
+    .team-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: #1e293b;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      color: var(--primary);
+    }
+
+    /* Top Grid */
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .stat-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .stat-value { font-size: 28px; font-weight: 800; font-family: var(--mono); margin-top: 6px; }
+
+    /* Action Bar */
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .btn-primary { background: #0284c7; color: white; }
+    .btn-primary:hover { background: #0369a1; box-shadow: 0 0 14px rgba(2,132,199,0.5); }
+    .btn-danger { background: #b91c1c; color: white; }
+    .btn-danger:hover { background: #991b1b; box-shadow: 0 0 14px rgba(185,28,28,0.5); }
+    .btn-secondary { background: #1e293b; color: var(--text); border: 1px solid var(--card-border); }
+    .btn-secondary:hover { background: #334155; }
+    .btn-outline { background: transparent; border: 1px dashed var(--primary); color: var(--primary); }
+    .btn-outline:hover { background: var(--primary-glow); }
+
+    /* Main Table Section */
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .panel-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; }
+    th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--card-border); }
+    td { padding: 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge-valid { background: var(--success-glow); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
+    .badge-tampered { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+    .badge-anomaly { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+
+    .tag-cell {
+      font-size: 11px;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .tag-cell:hover { color: var(--primary); }
+
+    /* Incident Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--danger);
+      box-shadow: 0 0 30px rgba(239,68,68,0.3);
+      border-radius: 14px;
+      max-width: 750px;
+      width: 100%;
+      padding: 24px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-title { color: var(--danger); font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .close-btn { background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+
+    /* Audit Log Drawer */
+    .audit-list { list-style: none; font-family: var(--mono); font-size: 12px; }
+    .audit-item {
+      display: flex; justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">🛡️</div>
+      <div>
+        <h1>TAGGUARD Verification & Forensic Dashboard</h1>
+        <p class="subtitle">ENG-05 Tamper-Evident Laboratory Telemetry Logger</p>
+      </div>
+    </div>
+    <div class="team-badge">QUAD-CODERS | CYBERHACK 2026</div>
+  </header>
+
+  <!-- Top Metrics -->
+  <div class="top-grid">
+    <div class="stat-card">
+      <div class="stat-title">Total Records</div>
+      <div class="stat-value" id="statTotal">5</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(16,185,129,0.3);">
+      <div class="stat-title" style="color: var(--success);">Authentic (Valid)</div>
+      <div class="stat-value" id="statValid" style="color: var(--success);">5</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(239,68,68,0.3);">
+      <div class="stat-title" style="color: var(--danger);">Tampered Violations</div>
+      <div class="stat-value" id="statTampered" style="color: var(--danger);">0</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(245,158,11,0.3);">
+      <div class="stat-title" style="color: var(--warning);">Sequence Anomalies</div>
+      <div class="stat-value" id="statAnomaly" style="color: var(--warning);">0</div>
+    </div>
+  </div>
+
+  <!-- Action Controls -->
+  <div class="action-bar">
+    <div class="btn-group">
+      <input type="file" id="filePicker" accept=".json,.csv" style="display:none;" onchange="handleFileSelect(event)">
+      <button class="btn btn-primary" onclick="document.getElementById('filePicker').click()">
+        📁 Load Telemetry (JSON/CSV)
+      </button>
+      <button class="btn btn-secondary" onclick="loadSampleData()">
+        🔄 Reset to Clean Samples
+      </button>
+      <button class="btn btn-danger" onclick="simulateAttack()">
+        💥 Simulate Tamper Attack (Change #001: 2.614V → 9.614V)
+      </button>
+      <button class="btn btn-secondary" onclick="simulateGap()">
+        ✂️ Simulate Sequence Drop (Delete #003)
+      </button>
+    </div>
+    <button class="btn btn-outline" onclick="openReportModal()" id="btnReport" style="display:none;">
+      🚨 View Forensic Incident Report
+    </button>
+  </div>
+
+  <!-- Main Records Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span>📋</span> Measurement Telemetry Records
+      </div>
+      <div style="font-size: 12px; color: var(--text-muted); font-family: var(--mono);" id="hashKeyNotice">
+        Active Key: <span style="color:var(--primary);">b63b5f9184...</span> (HMAC-SHA256)
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Seq #</th>
+          <th>Sensor Source</th>
+          <th>Measurement Value</th>
+          <th>Physical Unit</th>
+          <th>Capture Timestamp (UTC)</th>
+          <th>HMAC Integrity Tag</th>
+          <th>Audit Status</th>
+        </tr>
+      </thead>
+      <tbody id="recordTableBody">
+        <!-- Rendered via JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Forensic Audit Trail Log -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span>📜</span> Verification Audit Trail History (JSONL Log)
+      </div>
+      <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="clearAuditLog()">Clear Log</button>
+    </div>
+    <ul class="audit-list" id="auditList">
+      <!-- Populated via JS -->
+    </ul>
+  </div>
+</div>
+
+<!-- Forensic Incident Modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚨 Cryptographic Incident Report</div>
+      <button class="close-btn" onclick="closeReportModal()">&times;</button>
+    </div>
+    <div id="modalContent" style="font-family: var(--sans); font-size: 14px; line-height: 1.6;"></div>
+  </div>
+</div>
+
+<script>
+// Mock 32-byte shared HMAC key
+const DEMO_KEY = "b63b5f9184e53d13d021d9124d32b36a89f2834c3012cd0b2612616ab524197b";
+
+// Initial Clean Records
+let records = [
+  { sequence: 1, source: "POT_SENSOR", value: "2.614", unit: "V", timestamp: "2026-10-14T09:00:00Z", tag: "" },
+  { sequence: 2, source: "POT_SENSOR", value: "1.203", unit: "V", timestamp: "2026-10-14T09:00:15Z", tag: "" },
+  { sequence: 3, source: "POT_SENSOR", value: "0.487", unit: "V", timestamp: "2026-10-14T09:00:30Z", tag: "" },
+  { sequence: 4, source: "POT_SENSOR", value: "3.156", unit: "V", timestamp: "2026-10-14T09:00:45Z", tag: "" },
+  { sequence: 5, source: "POT_SENSOR", value: "1.850", unit: "V", timestamp: "2026-10-14T09:01:00Z", tag: "" }
+];
+
+let auditEvents = [];
+let lastIncident = null;
+
+// Compute HMAC-SHA256 via Web Crypto API
+async function computeHMAC(keyHex, message) {
+  const enc = new TextEncoder();
+  const keyBytes = new Uint8Array(keyHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(message));
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Canonical JSON representation matching verify.py
+function getCanonicalString(rec) {
+  return JSON.stringify({
+    sequence: rec.sequence,
+    source: rec.source,
+    timestamp: rec.timestamp,
+    unit: rec.unit,
+    value: rec.value
+  });
+}
+
+// Initialize and sign records
+async function signAllRecords() {
+  for (let r of records) {
+    const canonical = getCanonicalString(r);
+    r.tag = await computeHMAC(DEMO_KEY, canonical);
+  }
+}
+
+// Verification function
+async function verifyAndRender() {
+  const tbody = document.getElementById("recordTableBody");
+  tbody.innerHTML = "";
+
+  let validCount = 0;
+  let tamperedCount = 0;
+  let anomalyCount = 0;
+  let expectedSeq = 1;
+  let detectedIncidents = [];
+
+  for (let r of records) {
+    const canonical = getCanonicalString(r);
+    const expectedTag = await computeHMAC(DEMO_KEY, canonical);
+    const isTagValid = (r.tag === expectedTag);
+    const isSeqValid = (r.sequence === expectedSeq);
+
+    let statusBadge = "";
+    if (!isSeqValid) {
+      statusBadge += `<span class="badge badge-anomaly">⚠ SEQ MISMATCH (Exp: ${expectedSeq})</span> `;
+      anomalyCount++;
+    }
+
+    if (isTagValid) {
+      statusBadge += `<span class="badge badge-valid">✓ VALID</span>`;
+      validCount++;
+    } else {
+      statusBadge += `<span class="badge badge-tampered">✗ TAMPERED</span>`;
+      tamperedCount++;
+      detectedIncidents.push({
+        sequence: r.sequence,
+        source: r.source,
+        value: r.value,
+        unit: r.unit,
+        timestamp: r.timestamp,
+        providedTag: r.tag,
+        recalculatedTag: expectedTag
+      });
+    }
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>#${String(r.sequence).padStart(3, '0')}</strong></td>
+      <td><span style="color:var(--primary);">${r.source}</span></td>
+      <td><span style="font-size:15px; font-weight:700;">${r.value}</span></td>
+      <td>${r.unit}</td>
+      <td style="color:var(--text-muted);">${r.timestamp}</td>
+      <td class="tag-cell" title="${r.tag}">${r.tag.substring(0, 16)}...</td>
+      <td>${statusBadge}</td>
+    `;
+    tbody.appendChild(tr);
+    expectedSeq = r.sequence + 1;
+  }
+
+  // Update Stats
+  document.getElementById("statTotal").innerText = records.length;
+  document.getElementById("statValid").innerText = validCount;
+  document.getElementById("statTampered").innerText = tamperedCount;
+  document.getElementById("statAnomaly").innerText = anomalyCount;
+
+  // Audit Event
+  const eventId = "AUD-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const timeNow = new Date().toISOString();
+  const eventStatus = tamperedCount > 0 ? "TAMPERED_DETECTED" : (anomalyCount > 0 ? "SEQUENCE_ANOMALY" : "CLEAN");
+  
+  auditEvents.unshift({
+    id: eventId,
+    timestamp: timeNow,
+    status: eventStatus,
+    tampered: tamperedCount,
+    anomalies: anomalyCount,
+    total: records.length
+  });
+
+  renderAuditList();
+
+  // Report Button
+  const btnReport = document.getElementById("btnReport");
+  if (detectedIncidents.length > 0) {
+    lastIncident = { id: eventId, timestamp: timeNow, incidents: detectedIncidents };
+    btnReport.style.display = "inline-flex";
+  } else {
+    btnReport.style.display = "none";
+  }
+}
+
+function renderAuditList() {
+  const ul = document.getElementById("auditList");
+  ul.innerHTML = "";
+  for (let e of auditEvents.slice(0, 5)) {
+    const li = document.createElement("li");
+    li.className = "audit-item";
+    const statusHtml = e.status === "CLEAN" 
+      ? `<span style="color:var(--success);">✓ CLEAN</span>`
+      : `<span style="color:var(--danger); font-weight:700;">✗ ${e.status}</span>`;
+    li.innerHTML = `
+      <div>
+        <strong>${e.id}</strong> &bull; <span style="color:var(--text-muted);">${e.timestamp}</span>
+      </div>
+      <div>
+        <span>${e.total} records inspected (${e.tampered} tampered)</span> &bull; ${statusHtml}
+      </div>
+    `;
+    ul.appendChild(li);
+  }
+}
+
+// Attack Simulation: Change Record #1 from 2.614 to 9.614 (Slide 3)
+async function simulateAttack() {
+  if (records.length > 0) {
+    records[0].value = "9.614"; // Attacker changed value, tag left intact!
+    await verifyAndRender();
+  }
+}
+
+// Sequence Gap Simulation: Delete Record #3
+async function simulateGap() {
+  records = records.filter(r => r.sequence !== 3);
+  await verifyAndRender();
+}
+
+async function loadSampleData() {
+  records = [
+    { sequence: 1, source: "POT_SENSOR", value: "2.614", unit: "V", timestamp: "2026-10-14T09:00:00Z", tag: "" },
+    { sequence: 2, source: "POT_SENSOR", value: "1.203", unit: "V", timestamp: "2026-10-14T09:00:15Z", tag: "" },
+    { sequence: 3, source: "POT_SENSOR", value: "0.487", unit: "V", timestamp: "2026-10-14T09:00:30Z", tag: "" },
+    { sequence: 4, source: "POT_SENSOR", value: "3.156", unit: "V", timestamp: "2026-10-14T09:00:45Z", tag: "" },
+    { sequence: 5, source: "POT_SENSOR", value: "1.850", unit: "V", timestamp: "2026-10-14T09:01:00Z", tag: "" }
+  ];
+  await signAllRecords();
+  await verifyAndRender();
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const text = evt.target.result;
+      if (file.name.endsWith(".json")) {
+        records = JSON.parse(text);
+      } else if (file.name.endsWith(".csv")) {
+        const lines = text.trim().split("\n");
+        const headers = lines[0].split(",").map(h => h.trim());
+        records = lines.slice(1).map(line => {
+          const vals = line.split(",").map(v => v.trim());
+          let obj = {};
+          headers.forEach((h, i) => obj[h] = (h === "sequence" ? parseInt(vals[i]) : vals[i]));
+          return obj;
+        });
+      }
+      await verifyAndRender();
+    } catch(err) {
+      alert("Failed to parse file: " + err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openReportModal() {
+  if (!lastIncident) return;
+  const modal = document.getElementById("modalBackdrop");
+  const content = document.getElementById("modalContent");
+  let items = "";
+  for (let inc of lastIncident.incidents) {
+    items += `
+      <div style="background:#1e293b; padding:16px; border-radius:8px; margin-bottom:12px; border-left:4px solid var(--danger);">
+        <h4 style="color:var(--danger); margin-bottom:6px;">Record #${String(inc.sequence).padStart(3, '0')} — Cryptographic Mismatch</h4>
+        <p><strong>Observed In File:</strong> ${inc.value} ${inc.unit} (Captured: ${inc.timestamp})</p>
+        <p style="font-family:var(--mono); font-size:11px; margin-top:6px; color:#cbd5e1;">
+          <strong>Original Tag:</strong> ${inc.providedTag}<br>
+          <strong>Recalculated Tag:</strong> ${inc.recalculatedTag}
+        </p>
+        <p style="color:var(--warning); font-size:12px; margin-top:6px;">⚠️ Reason: Post-export modification detected at bit level.</p>
+      </div>
+    `;
+  }
+  content.innerHTML = `
+    <p><strong>Incident Reference:</strong> <code>${lastIncident.id}</code></p>
+    <p><strong>Inspection Timestamp:</strong> ${lastIncident.timestamp}</p>
+    <hr style="border:0; border-top:1px solid var(--card-border); margin:14px 0;">
+    ${items}
+    <p style="font-size:12px; color:var(--text-muted); margin-top:12px;">This report has been cryptographically cataloged in the local audit log.</p>
+  `;
+  modal.style.display = "flex";
+}
+
+function closeReportModal() {
+  document.getElementById("modalBackdrop").style.display = "none";
+}
+
+function clearAuditLog() {
+  auditEvents = [];
+  renderAuditList();
+}
+
+// Initial Boot
+(async () => {
+  await loadSampleData();
+})();
+</script>
+</body>
+</html>

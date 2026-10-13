@@ -23,6 +23,12 @@ SIGNED_FIELDS = FIELDS[:-1]
 TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 TAG_RE = re.compile(r"[0-9a-f]{64}\Z")
 
+# Audit engine import
+try:
+    from audit import AuditLogger, VerificationAuditEvent, TamperIncident, now_utc_iso
+except ImportError:
+    from verifier.audit import AuditLogger, VerificationAuditEvent, TamperIncident, now_utc_iso
+
 
 # ── Terminal colour helpers ──────────────────────────────────────────
 def _supports_color() -> bool:
@@ -216,6 +222,7 @@ def verify_file(source: Path, key: bytes) -> bool:
     tampered = 0
     seq_issues = 0
     ok = 0
+    incidents: list[TamperIncident] = []
 
     print(bold("=" * 48))
     print(bold("  TAGGUARD  Verification Report"))
@@ -224,21 +231,52 @@ def verify_file(source: Path, key: bytes) -> bool:
     print(f"  Records: {len(records)}")
     print(bold("-" * 48))
 
+    now_iso = now_utc_iso()
     for record in records:
-        if record.sequence != previous + 1:
-            print(f"  Record {record.sequence}: {yellow(f'{SYM_WARN} SEQUENCE ISSUE')} (expected {previous + 1})")
+        expected_seq = previous + 1
+        if record.sequence != expected_seq:
+            print(f"  Record {record.sequence}: {yellow(f'{SYM_WARN} SEQUENCE ISSUE')} (expected {expected_seq})")
             seq_issues += 1
             valid = False
+            incidents.append(TamperIncident(
+                incident_id=f"SEQ-{secrets.token_hex(4).upper()}",
+                record_sequence=record.sequence,
+                source=record.source,
+                observed_value=record.value,
+                unit=record.unit,
+                capture_timestamp=record.timestamp,
+                provided_tag=record.tag or "N/A",
+                recalculated_tag="N/A",
+                detection_timestamp=now_iso,
+                reason=f"Sequence gap or duplicate detected (got {record.sequence}, expected {expected_seq})",
+                severity="WARNING"
+            ))
         previous = record.sequence
-        if record.tag and hmac.compare_digest(record.tag, make_tag(record, key)):
+
+        recalc = make_tag(record, key)
+        if record.tag and hmac.compare_digest(record.tag, recalc):
             print(f"  Record {record.sequence}: {green(f'{SYM_OK} VALID')}")
             ok += 1
         else:
             print(f"  Record {record.sequence}: {red(f'{SYM_FAIL} TAMPERED / INVALID TAG')}")
             tampered += 1
             valid = False
+            incidents.append(TamperIncident(
+                incident_id=f"MOD-{secrets.token_hex(4).upper()}",
+                record_sequence=record.sequence,
+                source=record.source,
+                observed_value=record.value,
+                unit=record.unit,
+                capture_timestamp=record.timestamp,
+                provided_tag=record.tag or "MISSING",
+                recalculated_tag=recalc,
+                detection_timestamp=now_iso,
+                reason="HMAC tag mismatch: record payload altered after physical capture",
+                severity="CRITICAL"
+            ))
 
     print(bold("-" * 48))
+    overall = "CLEAN" if valid else ("TAMPERED_DETECTED" if tampered else "SEQUENCE_ANOMALY")
     if not records:
         print(yellow("  No records found."))
     elif valid:
@@ -251,7 +289,42 @@ def verify_file(source: Path, key: bytes) -> bool:
             parts.append(f"{seq_issues} SEQUENCE ISSUE(S)")
         print(red(f"  Result: {', '.join(parts)} {SYM_FAIL}"))
     print(bold("=" * 48))
+
+    # Log to persistent audit trail & generate incident report if needed
+    logger = AuditLogger()
+    event = VerificationAuditEvent(
+        event_id=f"AUD-{secrets.token_hex(4).upper()}",
+        timestamp=now_iso,
+        verified_file=str(source),
+        total_records=len(records),
+        valid_count=ok,
+        tampered_count=tampered,
+        sequence_issue_count=seq_issues,
+        overall_status=overall,
+        incidents=incidents
+    )
+    report_or_log = logger.log_event(event)
+    print(f"  Audit Event Logged: {event.event_id} -> audit_logs/audit_trail.jsonl")
+    if incidents:
+        print(bold(red(f"  🚨 Forensic Report: {report_or_log}")))
     return valid
+
+
+def show_audit_history() -> None:
+    logger = AuditLogger()
+    history = logger.get_history()
+    print(bold("=" * 60))
+    print(bold("  TAGGUARD  Verification Audit Trail History"))
+    print(bold("=" * 60))
+    if not history:
+        print("  No audit events recorded yet.")
+        return
+    for item in history[-10:]:
+        status = item.get("overall_status")
+        badge = green("✓ CLEAN") if status == "CLEAN" else red(f"✗ {status}")
+        print(f"  [{item.get('timestamp')}] {item.get('event_id')} | {badge}")
+        print(f"    File: {item.get('verified_file')} | Total: {item.get('total_records')} | Tampered: {item.get('tampered_count')}")
+    print(bold("=" * 60))
 
 
 def parser() -> argparse.ArgumentParser:
@@ -268,6 +341,7 @@ def parser() -> argparse.ArgumentParser:
     verify = commands.add_parser("verify", help="verify record tags and sequence order")
     verify.add_argument("input", type=Path)
     verify.add_argument("--key-file", type=Path, default=DEFAULT_KEY)
+    commands.add_parser("audit-history", help="display the persistent verification audit log history")
     return root
 
 
@@ -281,6 +355,9 @@ def main() -> int:
             key = load_key(args.key_file)
             hex_key = key.hex()
             print(f"Hex key for ESP32 Serial:  KEY {hex_key}")
+            return 0
+        if args.command == "audit-history":
+            show_audit_history()
             return 0
         key = load_key(args.key_file)
         if args.command == "sign":
