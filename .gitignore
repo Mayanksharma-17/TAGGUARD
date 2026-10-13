@@ -1,0 +1,6 @@
+.tagguard.key
+__pycache__/
+*.py[cod]
+examples/demo_*.json
+examples/tampered.*
+examples/gap.*

@@ -1,0 +1,42 @@
+[
+  {
+    "sequence": 1,
+    "source": "POT_SENSOR",
+    "value": "2.614",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:00Z",
+    "tag": ""
+  },
+  {
+    "sequence": 2,
+    "source": "POT_SENSOR",
+    "value": "1.203",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:15Z",
+    "tag": ""
+  },
+  {
+    "sequence": 3,
+    "source": "POT_SENSOR",
+    "value": "0.487",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:30Z",
+    "tag": ""
+  },
+  {
+    "sequence": 4,
+    "source": "POT_SENSOR",
+    "value": "3.156",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:45Z",
+    "tag": ""
+  },
+  {
+    "sequence": 5,
+    "source": "POT_SENSOR",
+    "value": "1.850",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:01:00Z",
+    "tag": ""
+  }
+]
