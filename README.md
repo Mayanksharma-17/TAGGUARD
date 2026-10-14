@@ -2,7 +2,7 @@
 
 > **ENG-05 Track | CyberHack 2026 — Build. Break. Defend.**  
 > Developed by **Quad-Coders** (Rajalakshmi Engineering College)  
-> *Nithin Aaron Smile (Team Lead) • Nandhan (Hardware) • Niranjana (Researcher) • NithinAaron (Software)*
+> *Nithin Aaron Smile (Team Lead) • Nandhan (Hardware) • Niranjana (Researcher) • Mayank Sharma (Software)*
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32%20WROOM--32-orange.svg)](https://www.espressif.com/)
