@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TAGGUARD — Tamper-Evident Telemetry & Audit Dashboard</title>
+  <title>TAGGUARD — Forensic Telemetry & Integrity Station</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #080d1a;
+      --bg: #090d16;
       --card-bg: #0f172a;
       --card-border: #1e293b;
-      --text: #f1f5f9;
+      --text: #f8fafc;
       --text-muted: #94a3b8;
       --primary: #38bdf8;
       --primary-glow: rgba(56, 189, 248, 0.15);
@@ -35,7 +35,7 @@
       line-height: 1.5;
     }
 
-    .container { max-width: 1350px; margin: 0 auto; }
+    .container { max-width: 1400px; margin: 0 auto; }
 
     /* Header */
     header {
@@ -49,7 +49,7 @@
     .brand { display: flex; align-items: center; gap: 14px; }
     .logo-badge {
       background: linear-gradient(135deg, #0284c7, #38bdf8);
-      width: 46px; height: 46px; border-radius: 12px;
+      width: 48px; height: 48px; border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       font-size: 24px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
     }
@@ -63,6 +63,9 @@
       border-radius: 8px;
       border: 1px solid var(--card-border);
       color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     /* Top Grid */
@@ -70,13 +73,13 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .stat-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 16px 20px;
+      padding: 18px 22px;
       position: relative;
       overflow: hidden;
     }
@@ -84,7 +87,6 @@
       content: "";
       position: absolute;
       top: 0; left: 0; right: 0; height: 3px;
-      background: transparent;
     }
     .stat-card.card-primary::after { background: var(--primary); }
     .stat-card.card-valid::after { background: var(--success); }
@@ -94,50 +96,94 @@
     .stat-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
     .stat-value { font-size: 32px; font-weight: 800; font-family: var(--mono); margin-top: 4px; }
 
-    /* Action Controls */
-    .action-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      justify-content: space-between;
+    /* Workflow Control Bar */
+    .workflow-bar {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      padding: 14px 18px;
+      padding: 16px 20px;
       border-radius: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
     }
-    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .workflow-section { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
     .btn {
       font-family: var(--sans);
       font-weight: 600;
       font-size: 13px;
-      padding: 8px 14px;
+      padding: 9px 16px;
       border-radius: 8px;
       border: none;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
     }
-    .btn-primary { background: #0284c7; color: white; }
-    .btn-primary:hover { background: #0369a1; box-shadow: 0 0 14px rgba(2,132,199,0.5); }
-    .btn-danger { background: #dc2626; color: white; }
-    .btn-danger:hover { background: #b91c1c; box-shadow: 0 0 14px rgba(220,38,38,0.5); }
-    .btn-secondary { background: #1e293b; color: var(--text); border: 1px solid var(--card-border); }
-    .btn-secondary:hover { background: #334155; }
-    .btn-live { background: #059669; color: white; }
-    .btn-live:hover { background: #047857; box-shadow: 0 0 14px rgba(5,150,105,0.5); }
-    .btn-report { background: transparent; border: 1px dashed var(--danger); color: var(--danger); }
+    .btn-serial { background: #0284c7; color: white; }
+    .btn-serial:hover { background: #0369a1; box-shadow: 0 0 15px rgba(2,132,199,0.5); }
+    .btn-serial.connected { background: #059669; }
+
+    .btn-export { background: #1e293b; color: var(--text); border: 1px solid var(--card-border); }
+    .btn-export:hover { background: #334155; }
+
+    .btn-file { background: #1e293b; color: var(--primary); border: 1px dashed var(--primary); }
+    .btn-file:hover { background: var(--primary-glow); }
+
+    .btn-analyze { background: #10b981; color: white; font-weight: 700; }
+    .btn-analyze:hover { background: #059669; box-shadow: 0 0 16px rgba(16,185,129,0.5); }
+
+    .btn-report { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
     .btn-report:hover { background: var(--danger-glow); }
 
-    /* Layout Split */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-      margin-bottom: 20px;
+    .file-pill {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      color: var(--primary);
+    }
+
+    /* Hardware Live Stream Monitor */
+    .stream-panel {
+      background: #060912;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .stream-feed { display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap; }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #64748b;
+    }
+    .live-dot.active {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
     /* Panels */
@@ -145,85 +191,63 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 18px 20px;
-      margin-bottom: 20px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
     }
     .panel-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
       border-bottom: 1px solid var(--card-border);
     }
-    .panel-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .panel-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 
-    /* Telemetry Chart Canvas */
+    /* Canvas Telemetry Graph */
     .chart-container {
-      position: relative;
       width: 100%;
-      height: 160px;
-      background: rgba(0,0,0,0.25);
+      height: 170px;
+      background: rgba(0,0,0,0.3);
       border-radius: 8px;
       overflow: hidden;
       border: 1px solid var(--card-border);
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
     canvas { width: 100%; height: 100%; display: block; }
 
     /* Table */
     table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; }
-    th { text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--card-border); }
-    td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
+    th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--card-border); }
+    td { padding: 13px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
     tr:hover td { background: rgba(255,255,255,0.02); }
-
-    .editable-val {
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px dashed transparent;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 700;
-      font-size: 14px;
-    }
-    .editable-val:hover {
-      border-color: var(--primary);
-      background: var(--primary-glow);
-    }
 
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 700;
+      letter-spacing: 0.5px;
     }
     .badge-valid { background: var(--success-glow); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
-    .badge-tampered { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239,68,68,0.4); animation: pulse 2s infinite; }
+    .badge-tampered { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239,68,68,0.4); }
     .badge-anomaly { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
 
     .tag-cell {
       font-size: 11px;
       color: #64748b;
       cursor: pointer;
-      font-family: var(--mono);
     }
     .tag-cell:hover { color: var(--primary); }
 
     /* Audit Trail */
-    .audit-list { list-style: none; font-family: var(--mono); font-size: 12px; max-height: 240px; overflow-y: auto; }
+    .audit-list { list-style: none; font-family: var(--mono); font-size: 12px; }
     .audit-item {
       display: flex; justify-content: space-between;
-      padding: 9px 12px;
+      padding: 10px 14px;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       align-items: center;
     }
@@ -243,7 +267,7 @@
       border: 1px solid var(--danger);
       box-shadow: 0 0 35px rgba(239,68,68,0.35);
       border-radius: 14px;
-      max-width: 760px;
+      max-width: 780px;
       width: 100%;
       padding: 24px;
       max-height: 90vh;
@@ -262,22 +286,26 @@
     <div class="brand">
       <div class="logo-badge">🛡️</div>
       <div>
-        <h1>TAGGUARD Telemetry & Forensic Audit Cockpit</h1>
-        <p class="subtitle">ENG-05 Tamper-Evident Laboratory Measurement Logger • Edge to Host Verification</p>
+        <h1>TAGGUARD Forensic Telemetry & Integrity Station</h1>
+        <p class="subtitle">ENG-05 Tamper-Evident Laboratory Measurement Logger • Live USB Acquisition & Offline Verification</p>
       </div>
     </div>
-    <div class="team-badge">QUAD-CODERS | CYBERHACK 2026</div>
+    <div class="team-badge">
+      <span>🔑 Key: <code>b63b5f91...</code></span>
+      <span>•</span>
+      <span>QUAD-CODERS</span>
+    </div>
   </header>
 
   <!-- Top Metrics -->
   <div class="top-grid">
     <div class="stat-card card-primary">
       <div class="stat-title">Total Records</div>
-      <div class="stat-value" id="statTotal">5</div>
+      <div class="stat-value" id="statTotal">0</div>
     </div>
     <div class="stat-card card-valid">
       <div class="stat-title" style="color: var(--success);">Authentic (Valid)</div>
-      <div class="stat-value" id="statValid" style="color: var(--success);">5</div>
+      <div class="stat-value" id="statValid" style="color: var(--success);">0</div>
     </div>
     <div class="stat-card card-tampered">
       <div class="stat-title" style="color: var(--danger);">Tampered Violations</div>
@@ -289,39 +317,55 @@
     </div>
   </div>
 
-  <!-- Action Controls -->
-  <div class="action-bar">
-    <div class="btn-group">
-      <input type="file" id="filePicker" accept=".json,.csv" style="display:none;" onchange="handleFileSelect(event)">
-      <button class="btn btn-primary" onclick="document.getElementById('filePicker').click()">
-        📁 Load Telemetry (JSON/CSV)
-      </button>
-      <button class="btn btn-live" onclick="connectWebSerial()" id="btnSerial">
-        🔌 Connect ESP32 USB (Live)
-      </button>
-      <button class="btn btn-secondary" onclick="loadSampleData()">
-        🔄 Reset to Clean
-      </button>
-      <button class="btn btn-danger" onclick="simulateAttack()">
-        💥 Tamper Attack (Change #001: 2.614V → 9.614V)
-      </button>
-      <button class="btn btn-secondary" onclick="simulateGap()">
-        ✂️ Sequence Gap (Drop #003)
-      </button>
+  <!-- Hardware Stream Status -->
+  <div class="stream-panel">
+    <div class="stream-feed">
+      <div class="live-dot" id="liveDot"></div>
+      <span style="color:var(--text-muted);">ESP32 Hardware Stream:</span>
+      <span id="streamStatus" style="color:#cbd5e1;">Disconnected. Click "Connect ESP32 USB" to capture live sensor telemetry.</span>
     </div>
-    <button class="btn btn-report" onclick="openReportModal()" id="btnReport" style="display:none;">
-      🚨 Forensic Incident Report
-    </button>
+    <div id="liveRecordCount" style="color:var(--primary); font-weight:700;">0 live records in memory</div>
   </div>
 
-  <!-- Main Telemetry & Chart -->
+  <!-- Workflow Controls (No hardcoded attack buttons!) -->
+  <div class="workflow-bar">
+    <div class="workflow-section">
+      <span class="section-label">Step 1: Acquisition</span>
+      <button class="btn btn-serial" onclick="connectWebSerial()" id="btnSerial">
+        🔌 Connect ESP32 USB
+      </button>
+      <button class="btn btn-export" onclick="exportHardwareCSV()" id="btnExport" disabled>
+        📥 Download Captured CSV
+      </button>
+    </div>
+
+    <div class="workflow-section">
+      <span class="section-label">Step 2: File Audit</span>
+      <input type="file" id="filePicker" accept=".csv,.json" style="display:none;" onchange="handleFileSelect(event)">
+      <button class="btn btn-file" onclick="document.getElementById('filePicker').click()">
+        📁 Select CSV / JSON File
+      </button>
+      <span class="file-pill" id="loadedFileLabel">No file loaded</span>
+      <button class="btn btn-analyze" onclick="runAnalysis()" id="btnAnalyze" disabled>
+        🔍 Run Cryptographic Audit & Analysis
+      </button>
+    </div>
+
+    <div class="workflow-section">
+      <button class="btn btn-report" onclick="openReportModal()" id="btnReport" style="display:none;">
+        🚨 View Forensic Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Analysis Panel -->
   <div class="panel">
     <div class="panel-header">
       <div class="panel-title">
-        <span>📈</span> Real-Time Voltage Telemetry & Waveform Verification
+        <span>📈</span> Laboratory Sensor Telemetry Waveform
       </div>
-      <div style="font-size: 12px; color: var(--text-muted); font-family: var(--mono);" id="keyDisplay">
-        Key: <span style="color:var(--primary);">b63b5f9184...</span> (HMAC-SHA256)
+      <div style="font-size: 12px; color: var(--text-muted); font-family: var(--mono);">
+        Verification Algorithm: <span style="color:var(--primary);">HMAC-SHA256 (Constant-Time)</span>
       </div>
     </div>
 
@@ -330,20 +374,26 @@
       <canvas id="telemetryCanvas"></canvas>
     </div>
 
+    <!-- Table -->
     <table>
       <thead>
         <tr>
           <th>Seq #</th>
           <th>Sensor Source</th>
-          <th>Physical Value (Click to edit)</th>
+          <th>Physical Reading</th>
           <th>Unit</th>
-          <th>Physical Timestamp (UTC)</th>
+          <th>Capture Timestamp (UTC)</th>
+          <th>Chain Link (Prev Tag)</th>
           <th>HMAC Integrity Tag</th>
-          <th>Cryptographic Status</th>
+          <th>Cryptographic Audit Result</th>
         </tr>
       </thead>
       <tbody id="recordTableBody">
-        <!-- Rows rendered via JS -->
+        <tr>
+          <td colspan="8" style="text-align:center; padding: 40px; color: var(--text-muted);">
+            No records loaded. Either capture readings via <strong>Connect ESP32 USB</strong> or select a <strong>CSV/JSON</strong> export to analyze.
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -352,55 +402,44 @@
   <div class="panel">
     <div class="panel-header">
       <div class="panel-title">
-        <span>📜</span> Verification Audit Trail (Append-Only JSONL Record)
+        <span>📜</span> Verification Audit Trail History (JSONL Log)
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="exportAuditJSON()">Export Log</button>
-        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="clearAuditLog()">Clear</button>
-      </div>
+      <button class="btn btn-export" style="font-size: 11px; padding: 4px 8px;" onclick="clearAuditLog()">Clear Log</button>
     </div>
     <ul class="audit-list" id="auditList">
-      <!-- Populated via JS -->
+      <!-- Generated via JS -->
     </ul>
   </div>
 </div>
 
-<!-- Modal -->
+<!-- Forensic Incident Modal -->
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">🚨 Forensic Tamper Incident Report</div>
+      <div class="modal-title">🚨 Cryptographic Tamper Incident Report</div>
       <button class="close-btn" onclick="closeReportModal()">&times;</button>
     </div>
     <div id="modalContent"></div>
     <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-      <button class="btn btn-secondary" onclick="downloadIncidentMarkdown()">📥 Download .MD Report</button>
-      <button class="btn btn-primary" onclick="closeReportModal()">Acknowledge & Close</button>
+      <button class="btn btn-export" onclick="downloadIncidentMarkdown()">📥 Download .MD Incident Certificate</button>
+      <button class="btn btn-analyze" onclick="closeReportModal()">Acknowledge</button>
     </div>
   </div>
 </div>
 
 <script>
-const DEMO_KEY = "b63b5f9184e53d13d021d9124d32b36a89f2834c3012cd0b2612616ab524197b";
+// Secret shared 256-bit HMAC key
+const MASTER_KEY = "b63b5f9184e53d13d021d9124d32b36a89f2834c3012cd0b2612616ab524197b";
 
-let records = [];
+// State
+let liveRecords = [];       // Captured over Serial from ESP32
+let activeFileRecords = []; // Loaded from selected CSV/JSON file
 let auditEvents = [];
-let lastIncident = null;
+let lastIncidentReport = null;
 let serialPort = null;
-let serialReader = null;
+let currentFileName = "";
 
-// Initial sample generator
-function getInitialSamples() {
-  return [
-    { sequence: 1, source: "POT_SENSOR", value: "2.614", unit: "V", timestamp: "2026-10-14T09:00:00Z", tag: "" },
-    { sequence: 2, source: "POT_SENSOR", value: "1.203", unit: "V", timestamp: "2026-10-14T09:00:15Z", tag: "" },
-    { sequence: 3, source: "POT_SENSOR", value: "0.487", unit: "V", timestamp: "2026-10-14T09:00:30Z", tag: "" },
-    { sequence: 4, source: "POT_SENSOR", value: "3.156", unit: "V", timestamp: "2026-10-14T09:00:45Z", tag: "" },
-    { sequence: 5, source: "POT_SENSOR", value: "1.850", unit: "V", timestamp: "2026-10-14T09:01:00Z", tag: "" }
-  ];
-}
-
-// Compute HMAC-SHA256 via Web Crypto
+// Web Crypto HMAC-SHA256
 async function computeHMAC(keyHex, message) {
   const enc = new TextEncoder();
   const keyBytes = new Uint8Array(keyHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
@@ -411,10 +450,20 @@ async function computeHMAC(keyHex, message) {
   return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Canonical JSON representation matching verify.py exactly
+// Canonical JSON matching verify.py (sorted keys)
 function getCanonicalString(rec) {
+  if (rec.prev_tag) {
+    return JSON.stringify({
+      prev_tag: rec.prev_tag,
+      sequence: parseInt(rec.sequence),
+      source: rec.source,
+      timestamp: rec.timestamp,
+      unit: rec.unit,
+      value: String(rec.value)
+    });
+  }
   return JSON.stringify({
-    sequence: rec.sequence,
+    sequence: parseInt(rec.sequence),
     source: rec.source,
     timestamp: rec.timestamp,
     unit: rec.unit,
@@ -422,27 +471,168 @@ function getCanonicalString(rec) {
   });
 }
 
-async function signAllRecords() {
-  for (let r of records) {
-    r.tag = await computeHMAC(DEMO_KEY, getCanonicalString(r));
+// ─────────────────────────────────────────────────────────────
+// 1. ESP32 Web Serial Connection & Live Acquisition
+// ─────────────────────────────────────────────────────────────
+async function connectWebSerial() {
+  if (!("serial" in navigator)) {
+    alert("Web Serial is supported in Google Chrome, Microsoft Edge, and Opera.");
+    return;
+  }
+  try {
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 115200 });
+
+    const btn = document.getElementById("btnSerial");
+    btn.innerText = "🟢 ESP32 Connected";
+    btn.classList.add("connected");
+    document.getElementById("liveDot").classList.add("active");
+    document.getElementById("streamStatus").innerText = "Listening for capture events on GPIO18...";
+
+    const decoder = new TextDecoderStream();
+    serialPort.readable.pipeTo(decoder.writable);
+    const inputStream = decoder.readable;
+    const reader = inputStream.getReader();
+
+    let buffer = "";
+    let lastLiveTag = "0".repeat(64);
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith("[CAPTURE]")) {
+          // Format: [CAPTURE] #001 | POT_SENSOR | 1.842 V | 2026-10-14T09:00:12Z | chain_tag: a4f8...
+          const parts = line.split("|").map(p => p.trim());
+          if (parts.length >= 5) {
+            const seq = parseInt(parts[0].replace(/[^0-9]/g, "")) || (liveRecords.length + 1);
+            const source = parts[1];
+            const valUnit = parts[2].split(" ");
+            const val = valUnit[0];
+            const unit = valUnit[1] || "V";
+            const ts = parts[3];
+            const tagStr = parts[4].replace(/^(chain_tag|tag):\s*/, "").trim();
+
+            const newRec = { sequence: seq, source: source, value: val, unit: unit, timestamp: ts, prev_tag: lastLiveTag, tag: tagStr };
+            lastLiveTag = tagStr;
+            liveRecords.push(newRec);
+
+            document.getElementById("streamStatus").innerText = `Received Record #${seq}: ${val} ${unit} at ${ts} (Chain Head Updated)`;
+            document.getElementById("liveRecordCount").innerText = `${liveRecords.length} live records in memory`;
+            document.getElementById("btnExport").disabled = false;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Serial error:", err);
   }
 }
 
-// Verification & Rendering
-async function verifyAndRender() {
+// Download captured records as a real CSV file
+function exportHardwareCSV() {
+  if (liveRecords.length === 0) {
+    alert("No records captured from ESP32 yet.");
+    return;
+  }
+  let csv = "sequence,source,value,unit,timestamp,prev_tag,tag\n";
+  for (let r of liveRecords) {
+    csv += `${r.sequence},${r.source},${r.value},${r.unit},${r.timestamp},${r.prev_tag},${r.tag}\n`;
+  }
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `hardware_telemetry_run_${new Date().toISOString().slice(11, 19).replace(/:/g, "-")}.csv`;
+  a.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2. File Selection (CSV / JSON)
+// ─────────────────────────────────────────────────────────────
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentFileName = file.name;
+  document.getElementById("loadedFileLabel").innerText = file.name;
+
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const text = evt.target.result;
+      if (file.name.endsWith(".json")) {
+        activeFileRecords = JSON.parse(text);
+      } else {
+        // CSV Parsing
+        const lines = text.trim().split("\n");
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^\ufeff/, ""));
+        activeFileRecords = lines.slice(1).map(line => {
+          const vals = line.split(",").map(v => v.trim());
+          let obj = {};
+          headers.forEach((h, i) => {
+            obj[h] = (h === "sequence" ? parseInt(vals[i]) : vals[i]);
+          });
+          return obj;
+        });
+      }
+      document.getElementById("btnAnalyze").disabled = false;
+      // Preliminary table render before audit
+      renderPreAuditTable();
+    } catch(err) {
+      alert("Failed to parse file: " + err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderPreAuditTable() {
+  const tbody = document.getElementById("recordTableBody");
+  tbody.innerHTML = "";
+  activeFileRecords.forEach(r => {
+    const prevTagDisp = r.prev_tag 
+      ? (r.prev_tag === "0".repeat(64) ? '<span style="color:#64748b;">GENESIS</span>' : '🔗 ' + r.prev_tag.substring(0, 10) + '...')
+      : '<span style="color:#64748b;">N/A (v1)</span>';
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>#${String(r.sequence).padStart(3, '0')}</strong></td>
+      <td><span style="color:var(--primary); font-weight:600;">${r.source}</span></td>
+      <td><span style="font-size:15px; font-weight:700;">${r.value}</span></td>
+      <td>${r.unit}</td>
+      <td style="color:var(--text-muted);">${r.timestamp}</td>
+      <td class="tag-cell" title="${r.prev_tag || ''}">${prevTagDisp}</td>
+      <td class="tag-cell" title="${r.tag}">${r.tag ? r.tag.substring(0, 16) + '...' : 'NONE'}</td>
+      <td><span style="color:var(--text-muted); font-size:11px;">PENDING AUDIT</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. Cryptographic Audit & Analysis (The Analyzer)
+// ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  if (activeFileRecords.length === 0) return;
+
   const tbody = document.getElementById("recordTableBody");
   tbody.innerHTML = "";
 
   let validCount = 0;
   let tamperedCount = 0;
   let anomalyCount = 0;
+  let chainBreakCount = 0;
   let expectedSeq = 1;
   let detectedIncidents = [];
-  let verificationStatuses = [];
+  let statuses = [];
 
-  for (let i = 0; i < records.length; i++) {
-    const r = records[i];
-    const expectedTag = await computeHMAC(DEMO_KEY, getCanonicalString(r));
+  const isChained = activeFileRecords.some(r => r.prev_tag);
+  let expectedPrevTag = "0".repeat(64);
+
+  for (let r of activeFileRecords) {
+    const canonical = getCanonicalString(r);
+    const expectedTag = await computeHMAC(MASTER_KEY, canonical);
     const isTagValid = (r.tag && r.tag.toLowerCase() === expectedTag.toLowerCase());
     const isSeqValid = (r.sequence === expectedSeq);
 
@@ -450,16 +640,46 @@ async function verifyAndRender() {
     if (!isSeqValid) {
       statusBadge += `<span class="badge badge-anomaly">⚠ SEQ #${r.sequence} (Exp: ${expectedSeq})</span> `;
       anomalyCount++;
+      detectedIncidents.push({
+        sequence: r.sequence,
+        source: r.source,
+        value: r.value,
+        unit: r.unit,
+        timestamp: r.timestamp,
+        reason: `Sequence inconsistency: found #${r.sequence}, expected #${expectedSeq}. Record deletion or reordering detected.`
+      });
     }
 
-    if (isTagValid) {
-      statusBadge += `<span class="badge badge-valid">✓ VALID</span>`;
+    let isChainBroken = false;
+    if (isChained && r.prev_tag && r.prev_tag !== expectedPrevTag) {
+      isChainBroken = true;
+    }
+
+    if (isChainBroken) {
+      statusBadge += `<span class="badge badge-tampered">✗ CHAIN BREAK</span>`;
+      chainBreakCount++;
+      tamperedCount++;
+      statuses.push({ tampered: true });
+      detectedIncidents.push({
+        sequence: r.sequence,
+        source: r.source,
+        value: r.value,
+        unit: r.unit,
+        timestamp: r.timestamp,
+        providedTag: r.prev_tag,
+        recalculatedTag: expectedPrevTag,
+        reason: `Hash-chain continuity broken: previous record altered or dropped, causing cascading verification failure.`
+      });
+      expectedPrevTag = r.tag;
+    } else if (isTagValid) {
+      statusBadge += `<span class="badge badge-valid">✓ AUTHENTIC</span>`;
       validCount++;
-      verificationStatuses.push({ valid: true, tampered: false });
+      statuses.push({ tampered: false });
+      expectedPrevTag = r.tag;
     } else {
       statusBadge += `<span class="badge badge-tampered">✗ TAMPERED</span>`;
       tamperedCount++;
-      verificationStatuses.push({ valid: false, tampered: true });
+      statuses.push({ tampered: true });
       detectedIncidents.push({
         sequence: r.sequence,
         source: r.source,
@@ -467,21 +687,24 @@ async function verifyAndRender() {
         unit: r.unit,
         timestamp: r.timestamp,
         providedTag: r.tag,
-        recalculatedTag: expectedTag
+        recalculatedTag: expectedTag,
+        reason: `Cryptographic tag mismatch: post-export value modification detected.`
       });
+      expectedPrevTag = expectedTag;
     }
+
+    const prevTagDisp = r.prev_tag 
+      ? (r.prev_tag === "0".repeat(64) ? '<span style="color:#64748b;">GENESIS</span>' : '🔗 ' + r.prev_tag.substring(0, 10) + '...')
+      : '<span style="color:#64748b;">N/A (v1)</span>';
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><strong>#${String(r.sequence).padStart(3, '0')}</strong></td>
       <td><span style="color:var(--primary); font-weight:600;">${r.source}</span></td>
-      <td>
-        <span class="editable-val" title="Click to manually edit and test tampering" onclick="editValue(${i})">
-          ${r.value} ✏️
-        </span>
-      </td>
+      <td><span style="font-size:15px; font-weight:700;">${r.value}</span></td>
       <td>${r.unit}</td>
       <td style="color:var(--text-muted);">${r.timestamp}</td>
+      <td class="tag-cell" title="${r.prev_tag || ''}">${prevTagDisp}</td>
       <td class="tag-cell" title="${r.tag}">${r.tag ? r.tag.substring(0, 16) + '...' : '<span style="color:var(--danger)">MISSING</span>'}</td>
       <td>${statusBadge}</td>
     `;
@@ -489,43 +712,49 @@ async function verifyAndRender() {
     expectedSeq = r.sequence + 1;
   }
 
-  // Update Stats
-  document.getElementById("statTotal").innerText = records.length;
+  // Update Metrics
+  document.getElementById("statTotal").innerText = activeFileRecords.length;
   document.getElementById("statValid").innerText = validCount;
   document.getElementById("statTampered").innerText = tamperedCount;
   document.getElementById("statAnomaly").innerText = anomalyCount;
 
-  // Draw Waveform Canvas
-  drawChart(verificationStatuses);
+  // Draw Waveform Chart
+  drawChart(activeFileRecords, statuses);
 
-  // Audit Event
+  // Log Audit Event
   const eventId = "AUD-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   const timeNow = new Date().toISOString();
   const eventStatus = tamperedCount > 0 ? "TAMPERED_DETECTED" : (anomalyCount > 0 ? "SEQUENCE_ANOMALY" : "CLEAN");
-  
+
   auditEvents.unshift({
     id: eventId,
     timestamp: timeNow,
+    file: currentFileName || "Export",
     status: eventStatus,
     tampered: tamperedCount,
-    anomalies: anomalyCount,
-    total: records.length
+    total: activeFileRecords.length
   });
-
   renderAuditList();
 
-  // Report Button
+  // Handle Incident Report Button
   const btnReport = document.getElementById("btnReport");
   if (detectedIncidents.length > 0) {
-    lastIncident = { id: eventId, timestamp: timeNow, incidents: detectedIncidents };
+    lastIncidentReport = {
+      id: eventId,
+      timestamp: timeNow,
+      file: currentFileName,
+      incidents: detectedIncidents
+    };
     btnReport.style.display = "inline-flex";
   } else {
     btnReport.style.display = "none";
   }
 }
 
-// Draw Telemetry Canvas Waveform
-function drawChart(statuses) {
+// ─────────────────────────────────────────────────────────────
+// 4. Telemetry Waveform Canvas
+// ─────────────────────────────────────────────────────────────
+function drawChart(records, statuses) {
   const canvas = document.getElementById("telemetryCanvas");
   const ctx = canvas.getContext("2d");
   const rect = canvas.getBoundingClientRect();
@@ -538,7 +767,7 @@ function drawChart(statuses) {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Grid
+  // Background Grid
   ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
   ctx.lineWidth = 1;
   for (let y = 20; y < h; y += 30) {
@@ -548,13 +777,12 @@ function drawChart(statuses) {
   if (records.length === 0) return;
 
   const stepX = (w - 60) / Math.max(records.length - 1, 1);
-  const maxV = 3.6;
+  const maxV = 4.0;
 
-  // Plot line
+  // Waveform line
   ctx.beginPath();
   ctx.strokeStyle = "#38bdf8";
   ctx.lineWidth = 2.5;
-
   records.forEach((r, idx) => {
     const val = parseFloat(r.value) || 0;
     const x = 30 + idx * stepX;
@@ -564,12 +792,12 @@ function drawChart(statuses) {
   });
   ctx.stroke();
 
-  // Plot points with status colors
+  // Nodes (Green for authentic, Red for tampered)
   records.forEach((r, idx) => {
     const val = parseFloat(r.value) || 0;
     const x = 30 + idx * stepX;
     const y = h - 25 - (val / maxV) * (h - 50);
-    const st = statuses[idx] || { valid: true };
+    const st = statuses[idx] || { tampered: false };
 
     ctx.beginPath();
     ctx.arc(x, y, st.tampered ? 7 : 5, 0, Math.PI * 2);
@@ -579,22 +807,15 @@ function drawChart(statuses) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Text value
     ctx.fillStyle = st.tampered ? "#f87171" : "#94a3b8";
     ctx.font = "10px 'JetBrains Mono'";
     ctx.fillText(`${r.value}V`, x - 12, y - 10);
   });
 }
 
-function editValue(index) {
-  const current = records[index].value;
-  const newVal = prompt(`Edit Voltage Value for Record #${records[index].sequence}:`, current);
-  if (newVal !== null && newVal.trim() !== "") {
-    records[index].value = newVal.trim();
-    verifyAndRender();
-  }
-}
-
+// ─────────────────────────────────────────────────────────────
+// 5. Audit List & Incident Modal
+// ─────────────────────────────────────────────────────────────
 function renderAuditList() {
   const ul = document.getElementById("auditList");
   ul.innerHTML = "";
@@ -606,7 +827,9 @@ function renderAuditList() {
       : `<span style="color:var(--danger); font-weight:700;">✗ ${e.status}</span>`;
     li.innerHTML = `
       <div>
-        <strong style="color:var(--primary);">${e.id}</strong> &bull; <span style="color:var(--text-muted);">${e.timestamp}</span>
+        <strong style="color:var(--primary);">${e.id}</strong> &bull; 
+        <span>${e.file}</span> &bull; 
+        <span style="color:var(--text-muted);">${e.timestamp.slice(11, 19)} UTC</span>
       </div>
       <div>
         <span>${e.total} records (${e.tampered} violations)</span> &bull; ${statusHtml}
@@ -616,130 +839,35 @@ function renderAuditList() {
   }
 }
 
-async function simulateAttack() {
-  if (records.length > 0) {
-    records[0].value = "9.614";
-    await verifyAndRender();
-  }
-}
-
-async function simulateGap() {
-  records = records.filter(r => r.sequence !== 3);
-  await verifyAndRender();
-}
-
-async function loadSampleData() {
-  records = getInitialSamples();
-  await signAllRecords();
-  await verifyAndRender();
-}
-
-function handleFileSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (evt) => {
-    try {
-      const text = evt.target.result;
-      if (file.name.endsWith(".json")) {
-        records = JSON.parse(text);
-      } else if (file.name.endsWith(".csv")) {
-        const lines = text.trim().split("\n");
-        const headers = lines[0].split(",").map(h => h.trim());
-        records = lines.slice(1).map(line => {
-          const vals = line.split(",").map(v => v.trim());
-          let obj = {};
-          headers.forEach((h, i) => obj[h] = (h === "sequence" ? parseInt(vals[i]) : vals[i]));
-          return obj;
-        });
-      }
-      await verifyAndRender();
-    } catch(err) {
-      alert("Failed to parse file: " + err);
-    }
-  };
-  reader.readAsText(file);
-}
-
-// Web Serial Support for Live Hardware
-async function connectWebSerial() {
-  if (!("serial" in navigator)) {
-    alert("Web Serial API is supported in Google Chrome, Microsoft Edge, or Opera.");
-    return;
-  }
-  try {
-    serialPort = await navigator.serial.requestPort();
-    await serialPort.open({ baudRate: 115200 });
-    document.getElementById("btnSerial").innerText = "🟢 Connected (Live USB)";
-    document.getElementById("btnSerial").style.background = "#0284c7";
-
-    const decoder = new TextDecoderStream();
-    serialPort.readable.pipeTo(decoder.writable);
-    const inputStream = decoder.readable;
-    serialReader = inputStream.getReader();
-
-    let buffer = "";
-    while (true) {
-      const { value, done } = await serialReader.read();
-      if (done) break;
-      buffer += value;
-      let lines = buffer.split("\n");
-      buffer = lines.pop();
-
-      for (let line of lines) {
-        line = line.trim();
-        if (line.startsWith("[CAPTURE]")) {
-          // Parse format: [CAPTURE] #001 | POT_SENSOR | 1.842 V | 2026-10-14T09:00:12Z | tag: a4f8...
-          const parts = line.split("|").map(p => p.trim());
-          if (parts.length >= 5) {
-            const seq = parseInt(parts[0].replace(/[^0-9]/g, "")) || (records.length + 1);
-            const source = parts[1];
-            const valUnit = parts[2].split(" ");
-            const val = valUnit[0];
-            const unit = valUnit[1] || "V";
-            const ts = parts[3];
-            const tagStr = parts[4].replace("tag:", "").trim();
-
-            records.push({
-              sequence: seq,
-              source: source,
-              value: val,
-              unit: unit,
-              timestamp: ts,
-              tag: tagStr
-            });
-            await verifyAndRender();
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Serial connection failed", err);
-    alert("Serial connection error or closed: " + err);
-  }
+function clearAuditLog() {
+  auditEvents = [];
+  renderAuditList();
 }
 
 function openReportModal() {
-  if (!lastIncident) return;
+  if (!lastIncidentReport) return;
   const modal = document.getElementById("modalBackdrop");
   const content = document.getElementById("modalContent");
   let items = "";
-  for (let inc of lastIncident.incidents) {
+  for (let inc of lastIncidentReport.incidents) {
     items += `
       <div style="background:#1e293b; padding:16px; border-radius:10px; margin-bottom:12px; border-left:4px solid var(--danger);">
-        <h4 style="color:var(--danger); font-size:15px; margin-bottom:6px;">Record #${String(inc.sequence).padStart(3, '0')} — Cryptographic Mismatch</h4>
-        <p style="font-size:13px;"><strong>Observed in Export:</strong> <span style="color:#ef4444; font-weight:700;">${inc.value} ${inc.unit}</span> (Physical Timestamp: ${inc.timestamp})</p>
-        <p style="font-family:var(--mono); font-size:11px; margin-top:8px; color:#cbd5e1; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px;">
-          <strong>Original Tag:</strong> ${inc.providedTag}<br>
-          <strong>Recalculated Tag:</strong> ${inc.recalculatedTag}
-        </p>
-        <p style="color:var(--warning); font-size:12px; margin-top:6px;">⚠️ Violation: Post-export alteration detected at bit level.</p>
+        <h4 style="color:var(--danger); font-size:15px; margin-bottom:6px;">Record #${String(inc.sequence).padStart(3, '0')} — Violation</h4>
+        <p style="font-size:13px;"><strong>Observed in File:</strong> <span style="color:#ef4444; font-weight:700;">${inc.value} ${inc.unit}</span> (Captured: ${inc.timestamp})</p>
+        ${inc.providedTag ? `
+          <p style="font-family:var(--mono); font-size:11px; margin-top:8px; color:#cbd5e1; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px;">
+            <strong>Original Stored Tag:</strong> ${inc.providedTag}<br>
+            <strong>Recalculated Tag:</strong> ${inc.recalculatedTag}
+          </p>
+        ` : ''}
+        <p style="color:var(--warning); font-size:12px; margin-top:6px;">⚠️ Reason: ${inc.reason}</p>
       </div>
     `;
   }
   content.innerHTML = `
-    <p><strong>Incident Reference:</strong> <code>${lastIncident.id}</code></p>
-    <p><strong>Inspection Timestamp:</strong> ${lastIncident.timestamp}</p>
+    <p><strong>Incident Reference:</strong> <code>${lastIncidentReport.id}</code></p>
+    <p><strong>Source File:</strong> <code>${lastIncidentReport.file}</code></p>
+    <p><strong>Audit Timestamp:</strong> ${lastIncidentReport.timestamp}</p>
     <hr style="border:0; border-top:1px solid var(--card-border); margin:14px 0;">
     ${items}
   `;
@@ -751,39 +879,23 @@ function closeReportModal() {
 }
 
 function downloadIncidentMarkdown() {
-  if (!lastIncident) return;
-  let md = `# 🚨 FORENSIC TAMPER INCIDENT REPORT: ${lastIncident.id}\n`;
-  md += `Generated at: ${lastIncident.timestamp}\n\n`;
-  lastIncident.incidents.forEach(inc => {
+  if (!lastIncidentReport) return;
+  let md = `# 🚨 FORENSIC TAMPER INCIDENT REPORT: ${lastIncidentReport.id}\n`;
+  md += `Source File: ${lastIncidentReport.file}\nAudit Timestamp: ${lastIncidentReport.timestamp}\n\n`;
+  lastIncidentReport.incidents.forEach(inc => {
     md += `## Record #${inc.sequence} — Violation\n`;
-    md += `- Sensor: ${inc.source}\n- Observed Value: ${inc.value} ${inc.unit}\n- Timestamp: ${inc.timestamp}\n`;
-    md += `- Provided Tag: ${inc.providedTag}\n- Recalculated Tag: ${inc.recalculatedTag}\n\n`;
+    md += `- Observed Value: ${inc.value} ${inc.unit}\n- Timestamp: ${inc.timestamp}\n`;
+    if (inc.providedTag) {
+      md += `- Stored Tag: ${inc.providedTag}\n- Recalculated Tag: ${inc.recalculatedTag}\n`;
+    }
+    md += `- Reason: ${inc.reason}\n\n`;
   });
   const blob = new Blob([md], { type: "text/markdown" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `INCIDENT_${lastIncident.id}.md`;
+  a.download = `INCIDENT_${lastIncidentReport.id}.md`;
   a.click();
 }
-
-function exportAuditJSON() {
-  const blob = new Blob([JSON.stringify(auditEvents, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "audit_trail.json";
-  a.click();
-}
-
-function clearAuditLog() {
-  auditEvents = [];
-  renderAuditList();
-}
-
-// Initial Boot
-(async () => {
-  await loadSampleData();
-  window.addEventListener("resize", () => drawChart([]));
-})();
 </script>
 </body>
 </html>

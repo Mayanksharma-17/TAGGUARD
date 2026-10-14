@@ -62,8 +62,19 @@ def main():
     gap_file.write_text(json.dumps(gap_records, indent=2), encoding="utf-8")
     run_cmd(["verify", str(gap_file)])
 
+    # 6. Innovation 1: Hash-Chained Ledger (Cascade Failure)
+    print("\n--- STEP 4: INNOVATION DEMO -- Hash-Chained Ledger & Cascading Failure ---")
+    chained_json = EXAMPLES / "signed_chained.json"
+    tampered_chained = EXAMPLES / "tampered_chained.json"
+    if chained_json.exists():
+        print("\n[A] Verifying authentic hash-chained ledger:")
+        run_cmd(["verify", str(chained_json)])
+    if tampered_chained.exists():
+        print("\n[B] Verifying tampered hash-chained ledger (Cascading Failure):")
+        run_cmd(["verify", str(tampered_chained)])
+
     print("\n" + "=" * 60)
-    print("  DEMO COMPLETE: All tampering & anomalies successfully caught!")
+    print("  DEMO COMPLETE: All tampering, anomalies & chain breaks caught!")
     print("=" * 60)
 
 

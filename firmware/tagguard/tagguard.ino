@@ -1,6 +1,6 @@
 /*
  * ╔══════════════════════════════════════════════════╗
- * ║  TAGGUARD — ESP32 Firmware v1.0                  ║
+ * ║  TAGGUARD — ESP32 Firmware v2.0                  ║
  * ║  Tamper-Evident Laboratory Measurement Logger    ║
  * ║  Team: Quad-Coders | CyberHack 2026              ║
  * ╚══════════════════════════════════════════════════╝
@@ -16,6 +16,11 @@
  *   GPIO26 — Yellow LED (CAPTURE)  via 330 ohm
  *   GPIO27 — Red    LED (WARNING)  via 330 ohm
  *
+ * v2.0 — Hash-Chained Record Ledger
+ *   Each record tag now covers the previous record's tag,
+ *   forming a cryptographic chain. Tampering any record
+ *   causes ALL subsequent records to fail verification.
+ *
  * Serial commands (115200 baud):
  *   KEY <64hex>              Set HMAC-SHA256 key (32 bytes)
  *   KEY?                     Print current key as hex
@@ -24,6 +29,7 @@
  *   CAPTURE                  Manual capture (same as button)
  *   EXPORT / EXPORT_JSON     Export all records as JSON
  *   EXPORT_CSV               Export all records as CSV
+ *   CHAIN_HASH               Print the current chain head hash
  *   CLEAR                    Delete all stored records
  *   STATUS                   Show system info
  *   HELP                     List commands
@@ -74,6 +80,11 @@ Record        records[MAX_RECORDS];
 int           recordCount  = 0;
 int           nextSequence = 1;
 
+/* Hash-chain: the tag of the last captured record.
+ * "0000...0000" (64 zeros) is the genesis sentinel
+ * (represents "no previous record").                */
+char          prevTagHex[65] = "0000000000000000000000000000000000000000000000000000000000000000";
+
 unsigned long lastCapMs   = 0;
 unsigned long lastTestMs  = 0;
 
@@ -83,7 +94,7 @@ void   processCommand(String cmd);
 void   captureReading();
 float  readPotVoltage();
 void   getCurrentTS(char *buf, size_t len);
-void   buildCanonical(const Record *r, char *buf, size_t len);
+void   buildCanonical(const Record *r, const char *prevTag, char *buf, size_t len);
 void   computeHMAC(const char *data, size_t len, char *hexOut);
 void   hexEncode(const uint8_t *data, size_t len, char *hexOut);
 bool   hexDecode(const char *hex, size_t hexLen, uint8_t *out, size_t outLen);
@@ -117,7 +128,7 @@ void setup() {
   /* Banner */
   Serial.println();
   Serial.println(F("============================================"));
-  Serial.println(F("  TAGGUARD v1.0"));
+  Serial.println(F("  TAGGUARD v2.0  (Hash-Chained Ledger)"));
   Serial.println(F("  Tamper-Evident Measurement Logger"));
   Serial.println(F("  Quad-Coders | CyberHack 2026"));
   Serial.println(F("============================================"));
@@ -260,10 +271,19 @@ void processCommand(String cmd) {
   if (u == "EXPORT" || u == "EXPORT_JSON")     { exportJSON();     return; }
   if (u == "EXPORT_CSV")                       { exportCSV();      return; }
 
+  if (u == "CHAIN_HASH") {
+    Serial.printf("[CHAIN] Current chain head (Record #%d tag):\r\n  %s\r\n",
+                  nextSequence - 1, prevTagHex);
+    return;
+  }
+
   if (u == "CLEAR") {
     recordCount = 0;
     nextSequence = 1;
-    Serial.println(F("[CLEAR] All records deleted."));
+    /* Reset chain to genesis sentinel */
+    memset(prevTagHex, '0', 64);
+    prevTagHex[64] = '\0';
+    Serial.println(F("[CLEAR] All records deleted. Chain reset to genesis."));
     return;
   }
 
@@ -306,15 +326,22 @@ void captureReading() {
   strncpy(r->unit,   "V",          sizeof(r->unit));
   getCurrentTS(r->timestamp, sizeof(r->timestamp));
 
-  /* Canonical JSON → HMAC-SHA256 → hex tag */
-  char canonical[256];
-  buildCanonical(r, canonical, sizeof(canonical));
+  /* ── Hash-Chained HMAC-SHA256 ──────────────────────
+   * Canonical payload now includes the previous record's
+   * tag as "prev_tag". This chains every record to the
+   * one before it, exactly like a linked blockchain node.
+   * Genesis record uses prevTagHex = "0000...0000".    */
+  char canonical[384];
+  buildCanonical(r, prevTagHex, canonical, sizeof(canonical));
   computeHMAC(canonical, strlen(canonical), r->tag);
+
+  /* Advance the chain head to the new tag */
+  strncpy(prevTagHex, r->tag, 65);
 
   recordCount++;
   nextSequence++;
 
-  Serial.printf("[CAPTURE] #%03d | %s | %s %s | %s | tag: %.16s...\r\n",
+  Serial.printf("[CAPTURE] #%03d | %s | %s %s | %s | chain_tag: %.16s...\r\n",
                 r->sequence, r->source, r->value, r->unit,
                 r->timestamp, r->tag);
 
@@ -350,16 +377,19 @@ void getCurrentTS(char *buf, size_t len) {
 /* ═══════════════════════════════════════════════════
  *  CANONICAL JSON  (must match Python verifier)
  *
- *  Sorted keys: sequence, source, timestamp, unit, value
+ *  Sorted keys: prev_tag, sequence, source, timestamp, unit, value
  *  Compact separators, no whitespace, UTF-8.
+ *  prev_tag = "0000...0000" for genesis (Record #1).
  * ═══════════════════════════════════════════════════ */
-void buildCanonical(const Record *r, char *buf, size_t len) {
+void buildCanonical(const Record *r, const char *prevTag, char *buf, size_t len) {
   snprintf(buf, len,
-    "{\"sequence\":%d,"
+    "{\"prev_tag\":\"%s\","
+    "\"sequence\":%d,"
     "\"source\":\"%s\","
     "\"timestamp\":\"%s\","
     "\"unit\":\"%s\","
     "\"value\":\"%s\"}",
+    prevTag,
     r->sequence, r->source, r->timestamp, r->unit, r->value);
 }
 
@@ -411,6 +441,8 @@ void exportJSON() {
   }
   Serial.println(F("--- BEGIN JSON ---"));
   Serial.println("[");
+  /* Reconstruct prev_tag for each record during export */
+  char p[65] = "0000000000000000000000000000000000000000000000000000000000000000";
   for (int i = 0; i < recordCount; i++) {
     Record *r = &records[i];
     Serial.println("  {");
@@ -419,8 +451,10 @@ void exportJSON() {
     Serial.printf("    \"value\": \"%s\",\r\n",     r->value);
     Serial.printf("    \"unit\": \"%s\",\r\n",      r->unit);
     Serial.printf("    \"timestamp\": \"%s\",\r\n", r->timestamp);
+    Serial.printf("    \"prev_tag\": \"%s\",\r\n",  p);
     Serial.printf("    \"tag\": \"%s\"\r\n",        r->tag);
     Serial.printf("  }%s\r\n", i < recordCount - 1 ? "," : "");
+    strncpy(p, r->tag, 65);
   }
   Serial.println("]");
   Serial.println(F("--- END JSON ---"));
@@ -436,12 +470,14 @@ void exportCSV() {
     return;
   }
   Serial.println(F("--- BEGIN CSV ---"));
-  Serial.println(F("sequence,source,value,unit,timestamp,tag"));
+  Serial.println(F("sequence,source,value,unit,timestamp,prev_tag,tag"));
+  char p[65] = "0000000000000000000000000000000000000000000000000000000000000000";
   for (int i = 0; i < recordCount; i++) {
     Record *r = &records[i];
-    Serial.printf("%d,%s,%s,%s,%s,%s\r\n",
+    Serial.printf("%d,%s,%s,%s,%s,%s,%s\r\n",
       r->sequence, r->source, r->value, r->unit,
-      r->timestamp, r->tag);
+      r->timestamp, p, r->tag);
+    strncpy(p, r->tag, 65);
   }
   Serial.println(F("--- END CSV ---"));
   Serial.printf("[EXPORT] %d record(s) as CSV.\r\n", recordCount);

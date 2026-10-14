@@ -4,3 +4,6 @@ __pycache__/
 examples/demo_*.json
 examples/tampered.*
 examples/gap.*
+audit_logs/*.jsonl
+audit_logs/incidents/*.md
+!audit_logs/**/.gitkeep

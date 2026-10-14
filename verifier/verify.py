@@ -18,8 +18,13 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_KEY = PROJECT_ROOT / ".tagguard.key"
-FIELDS = ("sequence", "source", "value", "unit", "timestamp", "tag")
-SIGNED_FIELDS = FIELDS[:-1]
+# v1 format: no prev_tag. v2 format: includes prev_tag for hash-chaining.
+FIELDS_V1    = ("sequence", "source", "value", "unit", "timestamp", "tag")
+FIELDS_V2    = ("sequence", "source", "value", "unit", "timestamp", "prev_tag", "tag")
+FIELDS       = FIELDS_V1          # default; auto-detected in load_records
+SIGNED_FIELDS_V1 = FIELDS_V1[:-1]
+SIGNED_FIELDS_V2 = FIELDS_V2[:-1]  # all except tag
+GENESIS_TAG  = "0" * 64            # chain sentinel for Record #1
 TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 TAG_RE = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -87,13 +92,17 @@ class Record:
     unit: str
     timestamp: str
     tag: str = ""
+    prev_tag: str = ""    # empty = v1 format (no chaining)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any], row: int) -> "Record":
         if not isinstance(raw, dict):
             raise ValueError(f"record {row}: expected an object/CSV row")
-        missing = set(FIELDS) - set(raw)
-        extra = set(raw) - set(FIELDS)
+        # Auto-detect v1 vs v2 format
+        is_v2 = "prev_tag" in raw
+        expected = set(FIELDS_V2 if is_v2 else FIELDS_V1)
+        missing = expected - set(raw)
+        extra   = set(raw) - expected
         if missing or extra:
             details = []
             if missing:
@@ -104,7 +113,9 @@ class Record:
         seq = raw["sequence"]
         if isinstance(seq, str) and re.fullmatch(r"[0-9]+", seq):
             seq = int(seq)
-        record = cls(seq, raw["source"], raw["value"], raw["unit"], raw["timestamp"], raw["tag"])
+        prev_tag = raw.get("prev_tag", "")
+        record = cls(seq, raw["source"], raw["value"], raw["unit"],
+                     raw["timestamp"], raw["tag"], prev_tag)
         record.validate(row)
         return record
 
@@ -133,16 +144,35 @@ class Record:
             raise ValueError(prefix + "timestamp is not a valid date/time") from None
         if self.tag and not TAG_RE.fullmatch(self.tag):
             raise ValueError(prefix + "tag must be blank or 64 lowercase hex characters")
+        if self.prev_tag and not TAG_RE.fullmatch(self.prev_tag):
+            raise ValueError(prefix + "prev_tag must be blank or 64 lowercase hex characters")
+
+    @property
+    def is_chained(self) -> bool:
+        """True when this record carries a prev_tag (v2 / hash-chained format)."""
+        return bool(self.prev_tag)
 
     def signed_data(self) -> dict[str, Any]:
-        return {name: getattr(self, name) for name in SIGNED_FIELDS}
+        if self.is_chained:
+            # v2: include prev_tag so the chain is cryptographically enforced
+            return {
+                "prev_tag": self.prev_tag,
+                "sequence": self.sequence,
+                "source":   self.source,
+                "timestamp": self.timestamp,
+                "unit":     self.unit,
+                "value":    self.value,
+            }
+        # v1 legacy: original five fields
+        return {name: getattr(self, name) for name in SIGNED_FIELDS_V1}
 
     def as_dict(self) -> dict[str, Any]:
-        return {**self.signed_data(), "tag": self.tag}
+        d = {**self.signed_data(), "tag": self.tag}
+        return d
 
 
 def canonical_bytes(record: Record) -> bytes:
-    """Canonical UTF-8 JSON for the five signed fields; tag is excluded."""
+    """Canonical UTF-8 JSON for the signed fields; tag is always excluded."""
     encoded = json.dumps(record.signed_data(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return encoded.encode("utf-8")
 
@@ -221,17 +251,25 @@ def verify_file(source: Path, key: bytes) -> bool:
     previous = 0
     tampered = 0
     seq_issues = 0
+    chain_breaks = 0
     ok = 0
     incidents: list[TamperIncident] = []
 
-    print(bold("=" * 48))
+    # Detect format from first record
+    is_chained = records[0].is_chained if records else False
+    format_label = green("Hash-Chained Ledger (v2)") if is_chained else yellow("Standard HMAC (v1)")
+
+    print(bold("=" * 52))
     print(bold("  TAGGUARD  Verification Report"))
-    print(bold("=" * 48))
-    print(f"  File: {source}")
+    print(bold("=" * 52))
+    print(f"  File:   {source}")
+    print(f"  Format: {format_label}")
     print(f"  Records: {len(records)}")
-    print(bold("-" * 48))
+    print(bold("-" * 52))
 
     now_iso = now_utc_iso()
+    prev_tag_expected = GENESIS_TAG  # chain sentinel for record #1
+
     for record in records:
         expected_seq = previous + 1
         if record.sequence != expected_seq:
@@ -253,14 +291,41 @@ def verify_file(source: Path, key: bytes) -> bool:
             ))
         previous = record.sequence
 
+        # ── Chain-link continuity check (v2 only) ──────────
+        if is_chained and record.prev_tag != prev_tag_expected:
+            print(f"  Record {record.sequence}: {red(f'{SYM_FAIL} CHAIN BREAK')} "
+                  f"(prev_tag mismatch — cascading failure from earlier tampering)")
+            chain_breaks += 1
+            tampered += 1
+            valid = False
+            incidents.append(TamperIncident(
+                incident_id=f"CHN-{secrets.token_hex(4).upper()}",
+                record_sequence=record.sequence,
+                source=record.source,
+                observed_value=record.value,
+                unit=record.unit,
+                capture_timestamp=record.timestamp,
+                provided_tag=record.prev_tag,
+                recalculated_tag=prev_tag_expected,
+                detection_timestamp=now_iso,
+                reason="Hash-chain continuity broken: previous record was tampered or deleted, causing cascade failure",
+                severity="CRITICAL"
+            ))
+            # Still advance expected prev_tag from this record's tag for subsequent checks
+            prev_tag_expected = record.tag
+            continue
+
         recalc = make_tag(record, key)
         if record.tag and hmac.compare_digest(record.tag, recalc):
             print(f"  Record {record.sequence}: {green(f'{SYM_OK} VALID')}")
             ok += 1
+            prev_tag_expected = record.tag   # advance chain head
         else:
             print(f"  Record {record.sequence}: {red(f'{SYM_FAIL} TAMPERED / INVALID TAG')}")
             tampered += 1
             valid = False
+            # After a tamper the expected chain head changes — cascade begins here
+            prev_tag_expected = recalc
             incidents.append(TamperIncident(
                 incident_id=f"MOD-{secrets.token_hex(4).upper()}",
                 record_sequence=record.sequence,
@@ -275,20 +340,23 @@ def verify_file(source: Path, key: bytes) -> bool:
                 severity="CRITICAL"
             ))
 
-    print(bold("-" * 48))
+    print(bold("-" * 52))
     overall = "CLEAN" if valid else ("TAMPERED_DETECTED" if tampered else "SEQUENCE_ANOMALY")
     if not records:
         print(yellow("  No records found."))
     elif valid:
-        print(green(f"  Result: ALL {ok} RECORD(S) VALID {SYM_OK}"))
+        chain_note = f" (Chain Integrity: {SYM_OK})" if is_chained else ""
+        print(green(f"  Result: ALL {ok} RECORD(S) VALID {SYM_OK}{chain_note}"))
     else:
         parts = []
-        if tampered:
-            parts.append(f"{tampered} TAMPERED")
+        if tampered - chain_breaks:
+            parts.append(f"{tampered - chain_breaks} TAMPERED")
+        if chain_breaks:
+            parts.append(f"{chain_breaks} CHAIN BREAK(S)")
         if seq_issues:
             parts.append(f"{seq_issues} SEQUENCE ISSUE(S)")
         print(red(f"  Result: {', '.join(parts)} {SYM_FAIL}"))
-    print(bold("=" * 48))
+    print(bold("=" * 52))
 
     # Log to persistent audit trail & generate incident report if needed
     logger = AuditLogger()

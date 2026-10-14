@@ -84,6 +84,31 @@ class TestTAGGUARD(unittest.TestCase):
         finally:
             temp_path.unlink(missing_ok=True)
 
+    def test_hash_chain_canonical_and_verification(self):
+        genesis = "0" * 64
+        v2_data = dict(self.sample_data)
+        v2_data["prev_tag"] = genesis
+        rec1 = verify.Record.from_dict(v2_data, 1)
+        self.assertTrue(rec1.is_chained)
+        canonical = verify.canonical_bytes(rec1).decode("utf-8")
+        # Ensure keys are alphabetical: prev_tag, sequence, source, timestamp, unit, value
+        expected = f'{{"prev_tag":"{genesis}","sequence":1,"source":"POT_SENSOR","timestamp":"2026-10-12T09:00:00Z","unit":"V","value":"2.614"}}'
+        self.assertEqual(canonical, expected)
+        rec1.tag = verify.make_tag(rec1, self.key)
+
+        # Record 2 chained to Record 1's tag
+        v2_data2 = dict(self.sample_data)
+        v2_data2["sequence"] = 2
+        v2_data2["value"] = "1.500"
+        v2_data2["prev_tag"] = rec1.tag
+        rec2 = verify.Record.from_dict(v2_data2, 2)
+        rec2.tag = verify.make_tag(rec2, self.key)
+
+        # Both records verify against their tags
+        self.assertEqual(rec1.tag, verify.make_tag(rec1, self.key))
+        self.assertEqual(rec2.tag, verify.make_tag(rec2, self.key))
+        self.assertEqual(rec2.prev_tag, rec1.tag)
+
 
 if __name__ == "__main__":
     unittest.main()
