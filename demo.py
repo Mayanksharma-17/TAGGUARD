@@ -66,12 +66,21 @@ def main():
     print("\n--- STEP 4: INNOVATION DEMO -- Hash-Chained Ledger & Cascading Failure ---")
     chained_json = EXAMPLES / "signed_chained.json"
     tampered_chained = EXAMPLES / "tampered_chained.json"
-    if chained_json.exists():
-        print("\n[A] Verifying authentic hash-chained ledger:")
-        run_cmd(["verify", str(chained_json)])
-    if tampered_chained.exists():
-        print("\n[B] Verifying tampered hash-chained ledger (Cascading Failure):")
-        run_cmd(["verify", str(tampered_chained)])
+
+    # Dynamically sign samples into hash-chained ledger using current active key
+    run_cmd(["sign", str(EXAMPLES / "samples.json"), "-o", str(chained_json), "--chain"])
+
+    print("\n[A] Verifying authentic hash-chained ledger:")
+    run_cmd(["verify", str(chained_json)])
+
+    # Create tampered version: alter record #1 value (2.614 -> 9.614) while leaving its tag intact
+    chained_records = json.loads(chained_json.read_text(encoding="utf-8"))
+    tampered_chain_records = copy.deepcopy(chained_records)
+    tampered_chain_records[0]["value"] = "9.614"
+    tampered_chained.write_text(json.dumps(tampered_chain_records, indent=2) + "\n", encoding="utf-8")
+
+    print("\n[B] Verifying tampered hash-chained ledger (Cascading Failure):")
+    run_cmd(["verify", str(tampered_chained)])
 
     print("\n" + "=" * 60)
     print("  DEMO COMPLETE: All tampering, anomalies & chain breaks caught!")

@@ -6,4 +6,9 @@ examples/tampered.*
 examples/gap.*
 audit_logs/*.jsonl
 audit_logs/incidents/*.md
+audit_logs/incidents/*.jpg
 !audit_logs/**/.gitkeep
+
+# Environment variables
+.env
+.env.local

@@ -43,17 +43,24 @@ Open Serial Monitor at **115200 baud**, line ending = "Newline":
    STATUS
 ```
 
-## Demo Flow
+## Wireless WebSocket Operation (Standalone Power)
 
-```
-1. Press CAPTURE button (or type CAPTURE) → records a measurement
-2. Repeat 3-5 times at different potentiometer positions
-3. Type EXPORT → copies JSON to Serial Monitor
-4. Paste JSON into a file: examples/captured.json
-5. Verify:  python verifier/verify.py verify examples/captured.json
-6. Edit one value in captured.json
-7. Verify again → TAMPERED detected!
-```
+The ESP32 firmware includes a built-in Wi-Fi SoftAP and RFC-6455 WebSocket server:
+- **Standalone Wi-Fi Hotspot**: `TAGGUARD-HOTSPOT` (Password: `tagguard123`)
+- **Default IP Address**: `192.168.4.1`
+- **WebSocket URL**: `ws://192.168.4.1:81`
+
+### Running Untethered (Wall Adapter / Power Bank):
+1. Flash the firmware while connected to USB.
+2. Unplug the ESP32 from your computer.
+3. Power the ESP32 with **any external power source** (phone charger, power bank, or 5V wall adapter).
+4. On your laptop/computer:
+   - Connect Wi-Fi to **`TAGGUARD-HOTSPOT`** (password: `tagguard123`).
+   - Open `dashboard.html` in Chrome or Edge.
+   - Click **`🌐 Connect Wi-Fi (WebSocket)`**.
+5. Turn the potentiometer on the breadboard and press the physical button (GPIO18) across the room.
+   - The ESP32 signs each record with hash-chained HMAC-SHA256.
+   - The measurement streams wirelessly in real time to your dashboard!
 
 ## Wiring Reference
 

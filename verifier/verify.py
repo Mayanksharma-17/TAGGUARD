@@ -98,6 +98,10 @@ class Record:
     def from_dict(cls, raw: dict[str, Any], row: int) -> "Record":
         if not isinstance(raw, dict):
             raise ValueError(f"record {row}: expected an object/CSV row")
+        # Allow raw/unsigned records where tag is not yet populated
+        if "tag" not in raw:
+            raw = dict(raw)
+            raw["tag"] = ""
         # Auto-detect v1 vs v2 format
         is_v2 = "prev_tag" in raw
         expected = set(FIELDS_V2 if is_v2 else FIELDS_V1)
@@ -113,9 +117,12 @@ class Record:
         seq = raw["sequence"]
         if isinstance(seq, str) and re.fullmatch(r"[0-9]+", seq):
             seq = int(seq)
-        prev_tag = raw.get("prev_tag", "")
-        record = cls(seq, raw["source"], raw["value"], raw["unit"],
-                     raw["timestamp"], raw["tag"], prev_tag)
+        prev_tag = str(raw.get("prev_tag", "")).strip()
+        # Handle Excel / export single '0' or unpadded zero genesis sentinel
+        if prev_tag == "0" or prev_tag == "00":
+            prev_tag = "0" * 64
+        record = cls(seq, str(raw["source"]), str(raw["value"]), str(raw["unit"]),
+                     str(raw["timestamp"]), str(raw["tag"]), prev_tag)
         record.validate(row)
         return record
 
@@ -198,8 +205,16 @@ def load_records(path: Path) -> list[Record]:
                 reader = csv.DictReader(stream)
                 if reader.fieldnames is None:
                     raise ValueError("CSV file has no header row")
-                if set(reader.fieldnames) != set(FIELDS):
-                    raise ValueError("CSV header must contain: " + ",".join(FIELDS))
+                fnames = set(reader.fieldnames)
+                # Allow v1 or v2 headers (with or without 'tag' column for unsigned records)
+                valid_sets = [
+                    set(FIELDS_V1),
+                    set(FIELDS_V2),
+                    set(FIELDS_V1) - {"tag"},
+                    set(FIELDS_V2) - {"tag"},
+                ]
+                if not any(fnames == s for s in valid_sets):
+                    raise ValueError(f"CSV header must match v1 or v2 fields")
                 return [Record.from_dict(row, i) for i, row in enumerate(reader, start=2)]
         raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError:
@@ -214,21 +229,32 @@ def load_records(path: Path) -> list[Record]:
 def save_records(records: list[Record], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() == ".csv":
+        is_chained = any(r.is_chained for r in records)
+        fieldnames = FIELDS_V2 if is_chained else FIELDS_V1
         with path.open("w", newline="", encoding="utf-8") as stream:
-            writer = csv.DictWriter(stream, fieldnames=FIELDS, lineterminator="\n")
+            writer = csv.DictWriter(stream, fieldnames=fieldnames, lineterminator="\n")
             writer.writeheader()
             writer.writerows(record.as_dict() for record in records)
     else:
         path.write_text(json.dumps([r.as_dict() for r in records], indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def create_key(path: Path) -> None:
+def create_key(path: Path, hex_key: str | None = None, force: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open("xb") as stream:
-            stream.write(secrets.token_bytes(32))
-    except FileExistsError:
-        raise ValueError(f"key already exists; leaving it unchanged: {path}") from None
+    if path.exists() and not force:
+        raise ValueError(f"key already exists; leaving it unchanged: {path}")
+    if hex_key:
+        try:
+            key_bytes = bytes.fromhex(hex_key.strip())
+        except ValueError:
+            raise ValueError("Provided hex key is not valid hex") from None
+        if len(key_bytes) < 32:
+            raise ValueError("key must be at least 32 bytes (64 hex characters)")
+    else:
+        key_bytes = secrets.token_bytes(32)
+
+    with path.open("wb") as stream:
+        stream.write(key_bytes)
     try:
         path.chmod(0o600)
     except OSError:
@@ -237,12 +263,20 @@ def create_key(path: Path) -> None:
     print("Keep it secret and do not commit it. Verification needs this same key.")
 
 
-def sign_file(source: Path, output: Path, key: bytes) -> None:
+def sign_file(source: Path, output: Path, key: bytes, chain: bool = False) -> None:
     records = load_records(source)
-    for record in records:
-        record.tag = make_tag(record, key)
+    if chain or any(r.is_chained for r in records):
+        prev_tag = GENESIS_TAG
+        for record in records:
+            record.prev_tag = prev_tag
+            record.tag = make_tag(record, key)
+            prev_tag = record.tag
+    else:
+        for record in records:
+            record.tag = make_tag(record, key)
     save_records(records, output)
-    print(f"Signed {len(records)} record(s) -> {output}")
+    mode_str = " (hash-chained v2)" if (chain or (records and records[0].is_chained)) else " (standard v1)"
+    print(f"Signed {len(records)} record(s){mode_str} -> {output}")
 
 
 def verify_file(source: Path, key: bytes) -> bool:
@@ -400,12 +434,15 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init-key", help="create a local 256-bit signing key")
     init.add_argument("--key-file", type=Path, default=DEFAULT_KEY)
+    init.add_argument("--hex", type=str, help="import a specific hex-encoded 32-byte key")
+    init.add_argument("-f", "--force", action="store_true", help="overwrite existing key file")
     show = commands.add_parser("show-key", help="print the signing key as hex (for ESP32)")
     show.add_argument("--key-file", type=Path, default=DEFAULT_KEY)
     sign = commands.add_parser("sign", help="sign records and write a new file")
     sign.add_argument("input", type=Path)
     sign.add_argument("-o", "--output", type=Path, required=True)
     sign.add_argument("--key-file", type=Path, default=DEFAULT_KEY)
+    sign.add_argument("--chain", action="store_true", help="sign in hash-chained mode (Format v2)")
     verify = commands.add_parser("verify", help="verify record tags and sequence order")
     verify.add_argument("input", type=Path)
     verify.add_argument("--key-file", type=Path, default=DEFAULT_KEY)
@@ -417,7 +454,7 @@ def main() -> int:
     args = parser().parse_args()
     try:
         if args.command == "init-key":
-            create_key(args.key_file)
+            create_key(args.key_file, hex_key=args.hex, force=args.force)
             return 0
         if args.command == "show-key":
             key = load_key(args.key_file)
@@ -429,7 +466,7 @@ def main() -> int:
             return 0
         key = load_key(args.key_file)
         if args.command == "sign":
-            sign_file(args.input, args.output, key)
+            sign_file(args.input, args.output, key, chain=args.chain)
             return 0
         return 0 if verify_file(args.input, key) else 1
     except (ValueError, OSError) as exc:

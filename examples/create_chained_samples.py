@@ -29,6 +29,8 @@ raw_records = [
      "timestamp": "2026-10-14T09:01:00Z"},
 ]
 
+if not KEY.exists():
+    verify.create_key(KEY)
 key_bytes = KEY.read_bytes()
 prev_tag = GENESIS
 signed = []

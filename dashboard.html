@@ -110,6 +110,10 @@
       gap: 16px;
     }
     .workflow-section { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-sync { background: #8b5cf6; color: white; }
+    .btn-sync:hover { background: #7c3aed; }
+    .btn-cap { background: #f59e0b; color: black; font-weight: 700; }
+    .btn-cap:hover { background: #d97706; }
     .section-label {
       font-size: 11px;
       text-transform: uppercase;
@@ -135,6 +139,23 @@
     .btn-serial { background: #0284c7; color: white; }
     .btn-serial:hover { background: #0369a1; box-shadow: 0 0 15px rgba(2,132,199,0.5); }
     .btn-serial.connected { background: #059669; }
+
+    .btn-wifi { background: #6366f1; color: white; font-weight: 700; }
+    .btn-wifi:hover { background: #4f46e5; box-shadow: 0 0 15px rgba(99,102,241,0.5); }
+    .btn-wifi.connected { background: #059669; box-shadow: 0 0 15px rgba(5,150,105,0.5); }
+
+    .ws-input {
+      background: #060912;
+      border: 1px solid var(--card-border);
+      color: var(--primary);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      width: 175px;
+      transition: border-color 0.2s;
+    }
+    .ws-input:focus { outline: none; border-color: var(--primary); }
 
     .btn-export { background: #1e293b; color: var(--text); border: 1px solid var(--card-border); }
     .btn-export:hover { background: #334155; }
@@ -330,9 +351,19 @@
   <!-- Workflow Controls (No hardcoded attack buttons!) -->
   <div class="workflow-bar">
     <div class="workflow-section">
-      <span class="section-label">Step 1: Acquisition</span>
-      <button class="btn btn-serial" onclick="connectWebSerial()" id="btnSerial">
-        🔌 Connect ESP32 USB
+      <span class="section-label">Step 1: Live Acquisition</span>
+      <button class="btn btn-wifi" onclick="toggleWebSocketConnection()" id="btnWifi">
+        🌐 Connect Wi-Fi (WebSocket)
+      </button>
+      <input type="text" id="wsUrlInput" class="ws-input" value="ws://192.168.4.1:81" placeholder="ws://192.168.4.1:81" title="ESP32 Hotspot WebSocket URL">
+      <button class="btn btn-serial" onclick="connectWebSerial()" id="btnSerial" title="Or connect via USB cable">
+        🔌 Connect USB
+      </button>
+      <button class="btn btn-sync" onclick="syncESP32Time()" id="btnSyncTime" disabled>
+        ⏱️ Sync Clock
+      </button>
+      <button class="btn btn-cap" onclick="triggerWebCapture()" id="btnWebCap" disabled>
+        ⚡ Capture Reading
       </button>
       <button class="btn btn-export" onclick="exportHardwareCSV()" id="btnExport" disabled>
         📥 Download Captured CSV
@@ -432,12 +463,15 @@
 const MASTER_KEY = "b63b5f9184e53d13d021d9124d32b36a89f2834c3012cd0b2612616ab524197b";
 
 // State
-let liveRecords = [];       // Captured over Serial from ESP32
+let liveRecords = [];       // Captured from ESP32 (Wireless or Serial)
 let activeFileRecords = []; // Loaded from selected CSV/JSON file
 let auditEvents = [];
 let lastIncidentReport = null;
 let serialPort = null;
+let ws = null;
+let wsConnected = false;
 let currentFileName = "";
+let lastLiveTag = "0".repeat(64);
 
 // Web Crypto HMAC-SHA256
 async function computeHMAC(keyHex, message) {
@@ -471,8 +505,119 @@ function getCanonicalString(rec) {
   });
 }
 
+// Ingest a newly captured record into memory and render
+function handleIncomingRecord(data) {
+  const seq = parseInt(data.sequence) || (liveRecords.length + 1);
+  const source = data.source || "POT_SENSOR";
+  const val = String(data.value);
+  const unit = data.unit || "V";
+  const ts = data.timestamp;
+  let prev_tag = data.prev_tag;
+  if (!prev_tag || prev_tag === "0") prev_tag = "0".repeat(64);
+  const tagStr = data.tag;
+
+  // Prevent duplicate insertion if already in memory
+  if (liveRecords.some(r => r.sequence === seq && r.tag === tagStr)) {
+    return;
+  }
+
+  const newRec = { sequence: seq, source: source, value: val, unit: unit, timestamp: ts, prev_tag: prev_tag, tag: tagStr };
+  lastLiveTag = tagStr;
+  liveRecords.push(newRec);
+
+  activeFileRecords = [...liveRecords];
+  renderPreAuditTable();
+  document.getElementById("btnAnalyze").disabled = false;
+  document.getElementById("btnExport").disabled = false;
+
+  document.getElementById("streamStatus").innerText = `⚡ Received Record #${seq} (${val} ${unit}) at ${ts} | Chain Head Updated`;
+  document.getElementById("liveRecordCount").innerText = `${liveRecords.length} live records in memory`;
+}
+
 // ─────────────────────────────────────────────────────────────
-// 1. ESP32 Web Serial Connection & Live Acquisition
+// 1. ESP32 Wireless WebSocket Live Acquisition
+// ─────────────────────────────────────────────────────────────
+function toggleWebSocketConnection() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close();
+    return;
+  }
+  connectWebSocket();
+}
+
+function connectWebSocket() {
+  const url = document.getElementById("wsUrlInput").value.trim() || "ws://192.168.4.1:81";
+  const btn = document.getElementById("btnWifi");
+  btn.innerText = "⏳ Connecting...";
+  btn.disabled = true;
+
+  try {
+    ws = new WebSocket(url);
+  } catch (err) {
+    alert("Invalid WebSocket URL: " + err.message);
+    btn.innerText = "🌐 Connect Wi-Fi (WebSocket)";
+    btn.disabled = false;
+    return;
+  }
+
+  ws.onopen = () => {
+    wsConnected = true;
+    btn.disabled = false;
+    btn.innerText = "🟢 Wi-Fi Connected";
+    btn.classList.add("connected");
+    document.getElementById("btnSyncTime").disabled = false;
+    document.getElementById("btnWebCap").disabled = false;
+    document.getElementById("liveDot").classList.add("active");
+    document.getElementById("streamStatus").innerText = `Wirelessly connected to ESP32 at ${url}! Syncing clock...`;
+
+    // Auto-sync clock over WebSocket
+    setTimeout(syncESP32Time, 600);
+    // Auto-retrieve any existing records stored on the ESP32
+    setTimeout(() => sendCommand("EXPORT"), 1200);
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "record") {
+        handleIncomingRecord(msg);
+      } else if (msg.type === "export" && Array.isArray(msg.records)) {
+        for (let r of msg.records) {
+          handleIncomingRecord(r);
+        }
+        document.getElementById("streamStatus").innerText = `Retrieved ${msg.records.length} records wirelessly from ESP32.`;
+      } else if (msg.type === "event") {
+        document.getElementById("streamStatus").innerText = `ESP32 Event: ${msg.msg || msg.action}`;
+      } else if (msg.type === "hello") {
+        document.getElementById("streamStatus").innerText = `ESP32 Online: ${msg.records} records in hardware memory. Chain head active.`;
+      }
+    } catch (e) {
+      console.log("Raw WS message:", event.data);
+    }
+  };
+
+  ws.onclose = () => {
+    wsConnected = false;
+    btn.disabled = false;
+    btn.innerText = "🌐 Connect Wi-Fi (WebSocket)";
+    btn.classList.remove("connected");
+    if (!serialPort) {
+      document.getElementById("liveDot").classList.remove("active");
+      document.getElementById("streamStatus").innerText = "Wireless stream disconnected. Connect PC to 'TAGGUARD-HOTSPOT' Wi-Fi.";
+    }
+  };
+
+  ws.onerror = (err) => {
+    console.warn("WebSocket error:", err);
+    btn.disabled = false;
+    btn.innerText = "🌐 Connect Wi-Fi (WebSocket)";
+    btn.classList.remove("connected");
+    document.getElementById("streamStatus").innerText = "Wireless connection failed. Connect PC Wi-Fi to 'TAGGUARD-HOTSPOT' (Password: tagguard123) and retry.";
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2. ESP32 Web Serial Connection (USB Fallback)
 // ─────────────────────────────────────────────────────────────
 async function connectWebSerial() {
   if (!("serial" in navigator)) {
@@ -484,10 +629,15 @@ async function connectWebSerial() {
     await serialPort.open({ baudRate: 115200 });
 
     const btn = document.getElementById("btnSerial");
-    btn.innerText = "🟢 ESP32 Connected";
+    btn.innerText = "🟢 USB Connected";
     btn.classList.add("connected");
+    document.getElementById("btnSyncTime").disabled = false;
+    document.getElementById("btnWebCap").disabled = false;
     document.getElementById("liveDot").classList.add("active");
-    document.getElementById("streamStatus").innerText = "Listening for capture events on GPIO18...";
+    document.getElementById("streamStatus").innerText = "USB Connected! Syncing clock & ready...";
+
+    // Auto-sync clock immediately upon connection
+    setTimeout(syncESP32Time, 800);
 
     const decoder = new TextDecoderStream();
     serialPort.readable.pipeTo(decoder.writable);
@@ -495,7 +645,6 @@ async function connectWebSerial() {
     const reader = inputStream.getReader();
 
     let buffer = "";
-    let lastLiveTag = "0".repeat(64);
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -517,13 +666,15 @@ async function connectWebSerial() {
             const ts = parts[3];
             const tagStr = parts[4].replace(/^(chain_tag|tag):\s*/, "").trim();
 
-            const newRec = { sequence: seq, source: source, value: val, unit: unit, timestamp: ts, prev_tag: lastLiveTag, tag: tagStr };
-            lastLiveTag = tagStr;
-            liveRecords.push(newRec);
-
-            document.getElementById("streamStatus").innerText = `Received Record #${seq}: ${val} ${unit} at ${ts} (Chain Head Updated)`;
-            document.getElementById("liveRecordCount").innerText = `${liveRecords.length} live records in memory`;
-            document.getElementById("btnExport").disabled = false;
+            handleIncomingRecord({
+              sequence: seq,
+              source: source,
+              value: val,
+              unit: unit,
+              timestamp: ts,
+              prev_tag: lastLiveTag,
+              tag: tagStr
+            });
           }
         }
       }
@@ -531,6 +682,38 @@ async function connectWebSerial() {
   } catch (err) {
     console.error("Serial error:", err);
   }
+}
+
+async function sendSerialCommand(text) {
+  if (!serialPort || !serialPort.writable) return;
+  const writer = serialPort.writable.getWriter();
+  const encoder = new TextEncoder();
+  await writer.write(encoder.encode(text + "\n"));
+  writer.releaseLock();
+}
+
+// Unified Command Dispatcher (supports both WebSocket and USB Serial)
+async function sendCommand(text) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(text);
+    return true;
+  } else if (serialPort && serialPort.writable) {
+    await sendSerialCommand(text);
+    return true;
+  } else {
+    alert("Please connect to ESP32 first via Wi-Fi (WebSocket) or USB Serial.");
+    return false;
+  }
+}
+
+async function syncESP32Time() {
+  const nowUtc = new Date().toISOString().slice(0, 19) + "Z";
+  await sendCommand("TIME " + nowUtc);
+  document.getElementById("streamStatus").innerText = `Sent clock sync: ${nowUtc}. Ready to capture!`;
+}
+
+async function triggerWebCapture() {
+  await sendCommand("CAPTURE");
 }
 
 // Download captured records as a real CSV file
@@ -541,7 +724,9 @@ function exportHardwareCSV() {
   }
   let csv = "sequence,source,value,unit,timestamp,prev_tag,tag\n";
   for (let r of liveRecords) {
-    csv += `${r.sequence},${r.source},${r.value},${r.unit},${r.timestamp},${r.prev_tag},${r.tag}\n`;
+    let pt = r.prev_tag;
+    if (!pt || pt === "0") pt = "0".repeat(64);
+    csv += `${r.sequence},${r.source},${r.value},${r.unit},${r.timestamp},${pt},${r.tag}\n`;
   }
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const a = document.createElement("a");

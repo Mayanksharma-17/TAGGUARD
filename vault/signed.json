@@ -1,0 +1,42 @@
+[
+  {
+    "sequence": 1,
+    "source": "POT_SENSOR",
+    "value": "2.614",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:00Z",
+    "tag": "5d8c7102c7d36467371ae2b689cd3d42768d45c504aa549649942eb278f83437"
+  },
+  {
+    "sequence": 2,
+    "source": "POT_SENSOR",
+    "value": "1.203",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:15Z",
+    "tag": "ea9f1dc633964ecb6460f78fc01f7eb093490c81558740434b906d3962459b5c"
+  },
+  {
+    "sequence": 3,
+    "source": "POT_SENSOR",
+    "value": "0.487",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:30Z",
+    "tag": "b8ba6ec6c8cb2cd6558eee7d0fa32f649a4aea993debe1a5288cb0b3dcc7ae5c"
+  },
+  {
+    "sequence": 4,
+    "source": "POT_SENSOR",
+    "value": "3.156",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:00:45Z",
+    "tag": "37e9cb440b0a6bc09840c417699e0e13160218a41d5a14008ad60a66cfa7e255"
+  },
+  {
+    "sequence": 5,
+    "source": "POT_SENSOR",
+    "value": "1.850",
+    "unit": "V",
+    "timestamp": "2026-10-12T09:01:00Z",
+    "tag": "4d4082c1611e306de99b6979451a939e1014d6cb9d7cd5d7730e490a443ac1a8"
+  }
+]

@@ -109,6 +109,44 @@ class TestTAGGUARD(unittest.TestCase):
         self.assertEqual(rec2.tag, verify.make_tag(rec2, self.key))
         self.assertEqual(rec2.prev_tag, rec1.tag)
 
+    def test_sign_file_chaining(self):
+        import tempfile
+        records_raw = [
+            {"sequence": 1, "source": "POT_SENSOR", "value": "2.614", "unit": "V", "timestamp": "2026-10-12T09:00:00Z"},
+            {"sequence": 2, "source": "POT_SENSOR", "value": "1.203", "unit": "V", "timestamp": "2026-10-12T09:00:15Z"},
+        ]
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f_in, \
+             tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f_out:
+            import json
+            json.dump(records_raw, f_in)
+            f_in.flush()
+            in_path = Path(f_in.name)
+            out_path = Path(f_out.name)
+
+        try:
+            verify.sign_file(in_path, out_path, self.key, chain=True)
+            signed = verify.load_records(out_path)
+            self.assertEqual(len(signed), 2)
+            self.assertEqual(signed[0].prev_tag, verify.GENESIS_TAG)
+            self.assertEqual(signed[1].prev_tag, signed[0].tag)
+            self.assertTrue(verify.verify_file(out_path, self.key))
+        finally:
+            in_path.unlink(missing_ok=True)
+            out_path.unlink(missing_ok=True)
+
+    def test_init_key_with_hex(self):
+        import tempfile
+        test_hex = "b63b5f9184e53d13d021d9124d32b36a89f2834c3012cd0b2612616ab524197b"
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            temp_key = Path(f.name)
+        try:
+            temp_key.unlink(missing_ok=True)
+            verify.create_key(temp_key, hex_key=test_hex)
+            loaded = verify.load_key(temp_key)
+            self.assertEqual(loaded.hex(), test_hex)
+        finally:
+            temp_key.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()
